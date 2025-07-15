@@ -1,17 +1,15 @@
 import { Routes, Route, Navigate } from 'react-router-dom'
-import Login from './pages/Login'
-import Dashboard from './pages/Dashboard'
-import { ChakraProvider } from '@chakra-ui/react'
-import theme from './theme'
+import Login from './pages/Login.tsx'
+import Dashboard from './pages/Dashboard.tsx'
+import Signup from './pages/Signup'
 
 function App() {
   return (
-    <ChakraProvider theme={theme}>
-      <Routes>
-        <Route path="/login" element={<Login />} />
-        <Route path="/" element={<PrivateRoute><Dashboard /></PrivateRoute>} />
-      </Routes>
-    </ChakraProvider>
+    <Routes>
+      <Route path="/signup" element={<Signup />} />
+      <Route path="/login" element={<Login />} />
+      <Route path="/" element={<PrivateRoute><Dashboard /></PrivateRoute>} />
+    </Routes>
   )
 }
 
