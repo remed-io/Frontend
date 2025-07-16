@@ -1,21 +1,18 @@
+import React from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
-import Login from './pages/Login'
-import Dashboard from './pages/Dashboard'
-import { ChakraProvider } from '@chakra-ui/react'
-import theme from './theme'
+import Login from './pages/Login.tsx'
+import Dashboard from './pages/Dashboard.tsx'
 
 function App() {
   return (
-    <ChakraProvider theme={theme}>
-      <Routes>
-        <Route path="/login" element={<Login />} />
-        <Route path="/" element={<PrivateRoute><Dashboard /></PrivateRoute>} />
-      </Routes>
-    </ChakraProvider>
+    <Routes>
+      <Route path="/login" element={<Login />} />
+      <Route path="/" element={<PrivateRoute><Dashboard /></PrivateRoute>} />
+    </Routes>
   )
 }
 
-function PrivateRoute({ children }: { children: JSX.Element }) {
+function PrivateRoute({ children }: { children: React.ReactNode }) {
   const isAuth = Boolean(localStorage.getItem('token'))
   return isAuth ? children : <Navigate to="/login" replace />
 }
