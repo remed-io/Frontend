@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import {
     Flex,
     Box,
@@ -14,9 +14,14 @@ import {
     Input,
     InputGroup,
     InputLeftElement,
+    InputRightElement,
     Select,
     Divider,
     Badge,
+    Menu,
+    MenuButton,
+    MenuList,
+    MenuItem,
 } from '@chakra-ui/react'
 import {
     FiSearch,
@@ -31,12 +36,93 @@ import {
     FiUsers,
     FiSettings,
     FiHelpCircle,
+    FiMoreVertical,
+    FiLogOut,
+    FiUser,
 } from 'react-icons/fi'
 import { AiOutlineStock } from 'react-icons/ai'
+import {
+    MdHealthAndSafety,
+    MdPayments,
+    MdMedicalServices,
+    MdWarningAmber,
+    MdTranslate,
+} from 'react-icons/md';
+import { getEstatisticasMovimentacoes, getResumoEstoque, getEstoqueCritico } from '../services/api'
+import type { EstatisticasMovimentacao, ResumoEstoque } from '../services/api'
+import { useNavigate } from 'react-router-dom'
 
 const Dashboard: React.FC = () => {
+    const navigate = useNavigate()
     const [isDark, setIsDark] = useState(false)
     const toggleColorMode = () => setIsDark(!isDark)
+    const [stats, setStats] = useState<EstatisticasMovimentacao | null>(null)
+    const [resumo, setResumo] = useState<ResumoEstoque | null>(null)
+    const [criticoCount, setCriticoCount] = useState<number | null>(null)
+    const [user, setUser] = useState<{ id: number; nome: string; cargo: string } | null>(null)
+
+    // Busca estatísticas ao montar componente
+    useEffect(() => {
+        getEstatisticasMovimentacoes()
+            .then(res => setStats(res.data))
+            .catch(err => console.error('Erro ao buscar estatísticas:', err))
+    }, [])
+
+    // Busca resumo de estoque ao montar componente
+    useEffect(() => {
+        getResumoEstoque()
+            .then(data => setResumo(data))
+            .catch(err => console.error('Erro ao buscar resumo de estoque:', err))
+    }, [])
+
+    // Busca itens em estoque crítico para contar quantidade de medicamentos
+    useEffect(() => {
+        getEstoqueCritico()
+            .then(data => {
+                // filtra apenas medicamentos e soma quantidade_atual
+                const somaMedicamentos = data
+                    .filter((alerta: any) => alerta.categoria === 'Medicamento')
+                    .reduce((acc: number, alerta: any) => acc + (alerta.quantidade_atual || 0), 0);
+                setCriticoCount(somaMedicamentos);
+            })
+            .catch(err => console.error('Erro ao buscar itens críticos:', err));
+    }, [])
+
+
+    useEffect(() => {
+        const stored = localStorage.getItem('user')
+        if (stored) setUser(JSON.parse(stored))
+    }, [])
+
+    const handleLogout = () => {
+        localStorage.clear()
+        navigate('/login')
+    }
+
+    // Greeting logic
+    const agora = new Date()
+    const horas = agora.getHours()
+    const isDayTime = horas >= 6 && horas < 18
+    const greeting = isDayTime ? 'Bom dia!' : 'Boa noite!'
+    const greetingDate = agora.toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })
+    const greetingTime = agora.toLocaleTimeString('pt-BR')
+
+    // Determinar status do estoque baseado em resumo de estoque
+    const statusInfo = resumo ? (() => {
+        if (resumo.produtos_vencidos > 0) {
+            return { label: 'Vencido', borderColor: 'red.400', buttonScheme: 'red', icon: <MdWarningAmber size={28} color="#E74C3C" /> };
+        }
+        if (resumo.produtos_proximo_vencimento > 0) {
+            return { label: 'Próximo vencimento', borderColor: 'yellow.400', buttonScheme: 'yellow', icon: <MdWarningAmber size={28} color="#F1C40F" /> };
+        }
+        if (resumo.produtos_estoque_critico > 0) {
+            return { label: 'Estoque crítico', borderColor: 'orange.400', buttonScheme: 'orange', icon: <FiAlertTriangle size={28} color="#D35400" /> };
+        }
+        if (resumo.produtos_estoque_baixo > 0) {
+            return { label: 'Estoque baixo', borderColor: 'blue.300', buttonScheme: 'blue', icon: <AiOutlineStock size={28} color="#3498DB" /> };
+        }
+        return { label: 'Normal', borderColor: 'green.400', buttonScheme: 'green', icon: <MdHealthAndSafety size={28} color="#01A768" /> };
+    })() : { label: '...', borderColor: 'gray.400', buttonScheme: 'gray', icon: <MdHealthAndSafety size={28} color="#01A768" /> };
 
     return (
         <Flex h="100vh" fontFamily="Poppins, sans-serif" bg={isDark ? 'gray.900' : 'gray.100'} color={isDark ? 'white' : 'black'}>
@@ -48,12 +134,21 @@ const Dashboard: React.FC = () => {
                         <Heading size="md" fontFamily="Poppins, sans-serif" >ReMed.io</Heading>
                     </HStack>
                     <VStack align="start" spacing={4} w="full">
-                        <HStack spacing={3} w="full" p={2} bg="blue.100" borderRadius="md">
-                            <Avatar size="sm" src="/avatar.png" />
-                            <Box>
-                                <Text fontWeight="bold">Luck</Text>
-                                <Text fontSize="sm" color="red.500">Super Admin</Text>
-                            </Box>
+                        <HStack spacing={3} w="full" p={2} bg="blue.100" borderRadius="md" justify="space-between">
+                            <HStack spacing={3}>
+                                <Avatar size="sm" src="/avatar.png" />
+                                <Box>
+                                    <Text fontWeight="bold">{user?.nome ?? 'Usuário'}</Text>
+                                    <Text fontSize="sm" color="red.500">{user?.cargo ?? 'Cargo'}</Text>
+                                </Box>
+                            </HStack>
+                            <Menu>
+                                <MenuButton as={IconButton} icon={<FiMoreVertical />} variant="ghost" size="sm" aria-label="Opções" />
+                                <MenuList minW="auto" w="auto">
+                                    <MenuItem icon={<FiUser />} onClick={() => navigate('/profile')}>Editar Perfil</MenuItem>
+                                    <MenuItem icon={<FiLogOut />} onClick={handleLogout}>Logout</MenuItem>
+                                </MenuList>
+                            </Menu>
                         </HStack>
                         <VStack align="start" spacing={2} w="full">
                             <HStack spacing={2} w="full" p={2} _hover={{ bg: 'blue.100', cursor: 'pointer' }} borderRadius="md">
@@ -97,23 +192,27 @@ const Dashboard: React.FC = () => {
             {/* Main Content */}
             <Flex direction="column" flex={1} bg="gray.100">
                 {/* Header */}
-                <HStack justify="space-between" p={4} bg="white" boxShadow="sm">
-                    <InputGroup maxW="xs">
-                        <InputLeftElement pointerEvents="none">
+                <HStack justify="space-between" p="4" bg="white" boxShadow="sm">
+                    <InputGroup flex={1} maxW="600px">
+                        <Input placeholder="Buscar no sistema" bg="gray.50" borderRadius="md" />
+                        <InputRightElement pointerEvents="none">
                             <FiSearch color="gray.500" />
-                        </InputLeftElement>
-                        <Input placeholder="Buscar" bg="gray.50" />
+                        </InputRightElement>
                     </InputGroup>
-                    <HStack spacing={4}>
-                        <IconButton
-                            aria-label="Toggle Color Mode"
-                            icon={isDark ? <FiSun /> : <FiMoon />}
-                            onClick={toggleColorMode}
-                        />
-                        <Select w="auto" size="sm" value="pt-BR">
-                            <option value="pt-BR">Português (BR)</option>
-                        </Select>
-                        <Text>Bom dia! 14 Janeiro 2025 · 22:45:04</Text>
+                    <HStack spacing={5} align="center">
+                        <HStack spacing={1} align="center">
+                            <MdTranslate size={20} />
+                            <Select size="sm" variant="unstyled" w="auto" value="pt-BR">
+                                <option value="pt-BR">Português (BR)</option>
+                            </Select>
+                        </HStack>
+                        <VStack spacing={0} align="flex-end" textAlign="right">
+                            <HStack spacing={1} align="center">
+                                {isDayTime ? <FiSun size={20} color="#F1C40F" /> : <FiMoon size={20} color="#2C3E50" />}
+                                <Text fontSize="3sm" fontWeight="bold">{greeting}</Text>
+                            </HStack>
+                            <Text fontSize="sm">{greetingDate} · {greetingTime}</Text>
+                        </VStack>
                     </HStack>
                 </HStack>
 
@@ -122,15 +221,15 @@ const Dashboard: React.FC = () => {
                     <Heading size="lg">Dashboard</Heading>
                     <Text color="gray.600">Uma visão geral da saúde do seu estoque e movimentações recentes da farmácia.</Text>
                     <SimpleGrid columns={[1, 2, 4]} spacing={4} mt={6}>
-                        <Box bg="white" p={4} borderLeft="4px solid" borderColor="green.400" borderRadius="md">
+                        <Box bg="white" p={4} borderLeft="4px solid" borderColor={statusInfo.borderColor} borderRadius="md">
                             <HStack justify="space-between">
                                 <Box>
                                     <Text fontSize="sm" color="gray.500">Status do estoque</Text>
-                                    <Heading size="md">Em dia</Heading>
+                                    <Heading size="md">{statusInfo.label}</Heading>
                                 </Box>
-                                <FiClipboard size={24} color="green" />
+                                {statusInfo.icon}
                             </HStack>
-                            <Button variant="link" mt={2} colorScheme="green">
+                            <Button variant="link" mt={2} colorScheme={statusInfo.buttonScheme}>
                                 Ver Relatório Detalhado &raquo;
                             </Button>
                         </Box>
@@ -141,7 +240,7 @@ const Dashboard: React.FC = () => {
                                     <Text fontSize="sm" color="gray.500">Receita: Jan 2025</Text>
                                     <Heading size="md">R$ 80.000,00</Heading>
                                 </Box>
-                                <FiTrendingUp size={24} color="yellow" />
+                                <MdPayments size={28} color="#F1C40F" />
                             </HStack>
                             <Button variant="link" mt={2} colorScheme="yellow">
                                 Ver Relatório Detalhado &raquo;
@@ -151,10 +250,10 @@ const Dashboard: React.FC = () => {
                         <Box bg="white" p={4} borderLeft="4px solid" borderColor="blue.300" borderRadius="md">
                             <HStack justify="space-between">
                                 <Box>
-                                    <Text fontSize="sm" color="gray.500">Medicamentos Disponíveis</Text>
-                                    <Heading size="md">298</Heading>
+                                    <Text fontSize="sm" color="gray.500">Total de movimentações</Text>
+                                    <Heading size="md">{stats?.total_movimentacoes ?? '...'}</Heading>
                                 </Box>
-                                <FiShoppingCart size={24} color="blue" />
+                                <MdMedicalServices size={28} color="#BFDDFF" />
                             </HStack>
                             <Button variant="link" mt={2} colorScheme="blue">
                                 Ir para Estoque &raquo;
@@ -164,15 +263,16 @@ const Dashboard: React.FC = () => {
                         <Box bg="white" p={4} borderLeft="4px solid" borderColor="red.400" borderRadius="md">
                             <HStack justify="space-between">
                                 <Box>
-                                    <Text fontSize="sm" color="gray.500">Medicamento em Falta</Text>
-                                    <Heading size="md">01</Heading>
+                                    <Text fontSize="sm" color="gray.500">Medicamentos em falta</Text>
+                                    <Heading size="md">{criticoCount ?? '...'}</Heading>
                                 </Box>
-                                <FiAlertTriangle size={24} color="red" />
+                                <MdWarningAmber size={28} color="#E74C3C" />
                             </HStack>
                             <Button variant="link" mt={2} colorScheme="red">
                                 Resolver Agora &raquo;
                             </Button>
                         </Box>
+
                     </SimpleGrid>
 
                     {/* Lower Summary Grids */}
@@ -181,17 +281,17 @@ const Dashboard: React.FC = () => {
                             <HStack justify="space-between">
                                 <Text fontWeight="bold">Estoque</Text>
                                 <Button variant="link" colorScheme="blue" size="sm">
-                                    Ir para Estoque &raquo;
+                                    Ir para Estoque »
                                 </Button>
                             </HStack>
-                            <Divider my={2} />
+                            <Divider my={3} />
                             <HStack justify="space-around">
                                 <Box textAlign="center">
-                                    <Heading size="md">298</Heading>
+                                    <Heading size="md">{resumo?.total_itens ?? '...'}</Heading>
                                     <Text>Total de Medicamentos</Text>
                                 </Box>
                                 <Box textAlign="center">
-                                    <Heading size="md">24</Heading>
+                                    <Heading size="md">{resumo?.total_produtos_diferentes ?? '...'}</Heading>
                                     <Text>Medicine Groups</Text>
                                 </Box>
                             </HStack>
@@ -200,11 +300,17 @@ const Dashboard: React.FC = () => {
                         <Box bg="white" p={4} borderRadius="md">
                             <HStack justify="space-between">
                                 <Text fontWeight="bold">Resumo Rápido do Mês</Text>
-                                <Select size="sm" variant="unstyled">
-                                    <option>Janeiro 2025</option>
+                                <Select size="sm" variant="unstyled" textAlign="center" w="auto">
+                                    <option>Janeiro 2025 </option>
+                                    <option>Fevereiro 2025 </option>
+                                    <option>Março 2025 </option>
+                                    <option>Abril 2025 </option>
+                                    <option>Maio 2025 </option>
+                                    <option>Junho 2025 </option>
+                                    <option>Julho 2025 </option>
                                 </Select>
                             </HStack>
-                            <Divider my={2} />
+                            <Divider my={3} />
                             <HStack justify="space-around">
                                 <Box textAlign="center">
                                     <Heading size="md">70.856</Heading>
@@ -223,17 +329,17 @@ const Dashboard: React.FC = () => {
                         <HStack justify="space-between">
                             <Text fontWeight="bold">Alertas Ativos</Text>
                             <Button variant="link" colorScheme="blue" size="sm">
-                                Ir para Notificações &raquo;
+                                Ir para Notificações »
                             </Button>
                         </HStack>
-                        <Divider my={2} />
+                        <Divider my={3} />
                         <HStack justify="space-around">
                             <Box textAlign="center">
-                                <Heading size="md">08</Heading>
+                                <Heading size="md">{resumo?.produtos_vencidos ?? '...'}</Heading>
                                 <Text>Produtos Vencidos</Text>
                             </Box>
                             <Box textAlign="center">
-                                <Heading size="md">05</Heading>
+                                <Heading size="md">{resumo?.produtos_estoque_baixo ?? '...'}</Heading>
                                 <Text>Produtos em Falta</Text>
                             </Box>
                         </HStack>
