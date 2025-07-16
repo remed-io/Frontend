@@ -6,8 +6,14 @@ import Dashboard from './pages/Dashboard.tsx'
 function App() {
   return (
     <Routes>
-      <Route path="/login" element={<Login />} />
-      <Route path="/" element={<PrivateRoute><Dashboard /></PrivateRoute>} />
+      {/* Página inicial direciona para login */}
+      <Route path="/" element={<Login />} />
+      {/* Alias /login */}
+      <Route path="/login" element={<Navigate to="/" replace />} />
+      {/* Dashboard protegido */}
+      <Route path="/dashboard" element={<PrivateRoute><Dashboard /></PrivateRoute>} />
+      {/* Qualquer outra rota volta para login */}
+      <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   )
 }

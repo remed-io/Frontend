@@ -2,22 +2,32 @@ import React, { useState } from 'react'
 import type { FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Box, Flex, Input, Button, Heading, Text, Image, Stack, FormControl, FormLabel } from '@chakra-ui/react'
+import { loginFuncionario } from '../services/api'
 
 const Login: React.FC = () => {
     const [email, setEmail] = useState<string>('')
     const [senha, setSenha] = useState<string>('')
     const [loading, setLoading] = useState<boolean>(false)
+    const [errorMessage, setErrorMessage] = useState<string>('')
     const navigate = useNavigate()
 
-    const handleSubmit = (e: FormEvent) => {
+    const handleSubmit = async (e: FormEvent) => {
         e.preventDefault()
+        setErrorMessage('')
         setLoading(true)
-        // Autenticação temporária: aceita qualquer credencial
-        setTimeout(() => {
-            localStorage.setItem('token', 'dummy-token')
+        try {
+            const data = await loginFuncionario({ email, senha })
+            if (!data.success) throw new Error(data.message)
+            // Armazena ID do funcionário como token provisório e redireciona
+            localStorage.setItem('token', String(data.funcionario.id))
+            localStorage.setItem('user', JSON.stringify(data.funcionario))
+            navigate('/dashboard')
+        } catch (error: any) {
+            const msg = error.response?.data?.detail || error.response?.data?.message
+            setErrorMessage(msg || 'Email e senha inválidos')
+        } finally {
             setLoading(false)
-            navigate('/')
-        }, 500)
+        }
     }
 
     return (
@@ -68,6 +78,11 @@ const Login: React.FC = () => {
                             </Button>
                         </Stack>
                     </form>
+                    {errorMessage && (
+                        <Text color="red.500" mb={4} textAlign="center">
+                            {errorMessage}
+                        </Text>
+                    )}
                 </Box>
             </Flex>
         </Flex>

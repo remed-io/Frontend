@@ -1,19 +1,23 @@
 services:
   frontend:
-    # Modo de desenvolvimento com hot-reload via Vite
     build:
       context: .
       dockerfile: Dockerfile
       target: builder
     volumes:
-      # Monta código fonte e persiste node_modules em volume nomeado para caching
       - ./:/app
       - frontend_node_modules:/app/node_modules
     ports:
       - "5173:5173"
     environment:
       - CHOKIDAR_USEPOLLING=true
-    # Instala dependências e inicia Vite em modo dev com hot-reload
     command: sh -c "npm install && npm run dev -- --host 0.0.0.0"
+    networks:
+      - remedio_net
+
 volumes:
   frontend_node_modules:
+
+networks:
+  remedio_net:
+    external: true
