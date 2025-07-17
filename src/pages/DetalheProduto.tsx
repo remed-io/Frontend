@@ -103,7 +103,7 @@ const DetalheProduto = () => {
                         </Heading>
                         <IconButton
                             aria-label="Ação grande"
-                            icon={<FiEdit size={26} />} // aumenta o ícone também
+                            icon={<FiEdit size={26} />}
                             variant="ghost"
                             w="64px"
                             h="64px"

@@ -123,6 +123,23 @@ export const getSuplementoAlimentarById = async (id: number) => {
   const response = await api.get(`/suplemento-alimentar/${id}`);
   return response.data;
 };
+// Funções de criação de recursos
+export const createMedicamento = async (data: any) => {
+  const response = await api.post('/medicamento', data);
+  return response.data;
+};
+export const createCuidadoPessoal = async (data: any) => {
+  const response = await api.post('/cuidado-pessoal', data);
+  return response.data;
+};
+export const createSuplementoAlimentar = async (data: any) => {
+  const response = await api.post('/suplemento-alimentar', data);
+  return response.data;
+};
+export const createItemEstoque = async (data: any) => {
+  const response = await api.post('/item-estoque', data);
+  return response.data;
+};
 
 export default api;
 
