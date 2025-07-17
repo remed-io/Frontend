@@ -39,6 +39,7 @@ import {
     FiMoreVertical,
     FiLogOut,
     FiUser,
+    FiChevronDown,
 } from 'react-icons/fi'
 import { AiOutlineStock } from 'react-icons/ai'
 import {
@@ -48,46 +49,56 @@ import {
     MdWarningAmber,
     MdTranslate,
 } from 'react-icons/md';
-import { getEstatisticasMovimentacoes, getResumoEstoque, getEstoqueCritico } from '../services/api'
-import type { EstatisticasMovimentacao, ResumoEstoque } from '../services/api'
+import { getEstatisticasMovimentacoes, getEstatisticasMovimentacoesMesAtual, getResumoEstoque, getResumoAlertas, getEstatisticasMovimentacoesPeriodo, getItemMaisVendidoPeriodo } from '../services/api'
+import type { EstatisticasMovimentacao, ResumoEstoque, ResumoAlertas } from '../services/api'
 import { useNavigate } from 'react-router-dom'
+// FiChevronDown already imported above
 
 const Dashboard: React.FC = () => {
     const navigate = useNavigate()
     const [isDark, setIsDark] = useState(false)
-    const toggleColorMode = () => setIsDark(!isDark)
+    // toggleColorMode removed as unused
     const [stats, setStats] = useState<EstatisticasMovimentacao | null>(null)
+    const [statsMesAtual, setStatsMesAtual] = useState<EstatisticasMovimentacao | null>(null)
     const [resumo, setResumo] = useState<ResumoEstoque | null>(null)
-    const [criticoCount, setCriticoCount] = useState<number | null>(null)
     const [user, setUser] = useState<{ id: number; nome: string; cargo: string } | null>(null)
+    const [selectedMonth, setSelectedMonth] = useState<number>(new Date().getMonth() + 1);
+    const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
+    const [statsPeriodo, setStatsPeriodo] = useState<EstatisticasMovimentacao | null>(null);
+    const [itemMaisVendido, setItemMaisVendido] = useState<string | null>(null);
 
     // Busca estatísticas ao montar componente
     useEffect(() => {
+        console.log('Buscando estatísticas de movimentações...')
         getEstatisticasMovimentacoes()
-            .then(res => setStats(res.data))
+            .then(res => {
+                console.log('Estatísticas recebidas:', res.data)
+                setStats(res.data)
+            })
             .catch(err => console.error('Erro ao buscar estatísticas:', err))
+    }, [])
+
+    // Busca estatísticas do mês atual para receita
+    useEffect(() => {
+        console.log('Buscando estatísticas do mês atual...')
+        getEstatisticasMovimentacoesMesAtual()
+            .then(res => {
+                console.log('Estatísticas do mês atual recebidas:', res.data)
+                setStatsMesAtual(res.data)
+            })
+            .catch(err => console.error('Erro ao buscar estatísticas do mês atual:', err))
     }, [])
 
     // Busca resumo de estoque ao montar componente
     useEffect(() => {
+        console.log('Buscando resumo de estoque...')
         getResumoEstoque()
-            .then(data => setResumo(data))
+            .then(data => {
+                console.log('Resumo de estoque recebido:', data)
+                setResumo(data)
+            })
             .catch(err => console.error('Erro ao buscar resumo de estoque:', err))
     }, [])
-
-    // Busca itens em estoque crítico para contar quantidade de medicamentos
-    useEffect(() => {
-        getEstoqueCritico()
-            .then(data => {
-                // filtra apenas medicamentos e soma quantidade_atual
-                const somaMedicamentos = data
-                    .filter((alerta: any) => alerta.categoria === 'Medicamento')
-                    .reduce((acc: number, alerta: any) => acc + (alerta.quantidade_atual || 0), 0);
-                setCriticoCount(somaMedicamentos);
-            })
-            .catch(err => console.error('Erro ao buscar itens críticos:', err));
-    }, [])
-
 
     useEffect(() => {
         const stored = localStorage.getItem('user')
@@ -110,19 +121,43 @@ const Dashboard: React.FC = () => {
     // Determinar status do estoque baseado em resumo de estoque
     const statusInfo = resumo ? (() => {
         if (resumo.produtos_vencidos > 0) {
-            return { label: 'Vencido', borderColor: 'red.400', buttonScheme: 'red', icon: <MdWarningAmber size={28} color="#E74C3C" /> };
+            return { label: 'Vencido', borderColor: 'red.400', buttonScheme: 'red', icon: <MdWarningAmber size={28} color="#ff2a12ff" /> };
         }
         if (resumo.produtos_proximo_vencimento > 0) {
-            return { label: 'Próximo vencimento', borderColor: 'yellow.400', buttonScheme: 'yellow', icon: <MdWarningAmber size={28} color="#F1C40F" /> };
+            return { label: 'Próximo vencimento', borderColor: 'yellow.400', buttonScheme: 'yellow', icon: <MdHealthAndSafety size={28} color="#F1C40F" /> };
         }
         if (resumo.produtos_estoque_critico > 0) {
-            return { label: 'Estoque crítico', borderColor: 'orange.400', buttonScheme: 'orange', icon: <FiAlertTriangle size={28} color="#D35400" /> };
+            return { label: 'Estoque crítico', borderColor: 'orange.400', buttonScheme: 'orange', icon: <MdHealthAndSafety size={28} color="#D35400" /> };
         }
         if (resumo.produtos_estoque_baixo > 0) {
-            return { label: 'Estoque baixo', borderColor: 'blue.300', buttonScheme: 'blue', icon: <AiOutlineStock size={28} color="#3498DB" /> };
+            return { label: 'Estoque baixo', borderColor: 'yellow.300', buttonScheme: 'yellow', icon: <MdHealthAndSafety size={28} color="#f8e539ff" /> };
         }
         return { label: 'Normal', borderColor: 'green.400', buttonScheme: 'green', icon: <MdHealthAndSafety size={28} color="#01A768" /> };
     })() : { label: '...', borderColor: 'gray.400', buttonScheme: 'gray', icon: <MdHealthAndSafety size={28} color="#01A768" /> };
+
+    const periodOptions = React.useMemo((): { mes: number; ano: number }[] => {
+        const opts = [] as { mes: number; ano: number }[];
+        for (let i = 0; i < 12; i++) {
+            const d = new Date();
+            d.setMonth(d.getMonth() - i);
+            opts.push({ mes: d.getMonth() + 1, ano: d.getFullYear() });
+        }
+        return opts;
+    }, []);
+
+    React.useEffect(() => {
+        getEstatisticasMovimentacoesPeriodo(selectedMonth, selectedYear)
+            .then(res => setStatsPeriodo(res.data))
+            .catch(err => console.error('Erro ao buscar estatísticas do período:', err));
+        getItemMaisVendidoPeriodo(selectedMonth, selectedYear)
+            .then(data => setItemMaisVendido(data.item))
+            .catch(err => console.error('Erro ao buscar item mais vendido:', err));
+    }, [selectedMonth, selectedYear]);
+
+    const monthNames = [
+        'Janeiro','Fevereiro','Março','Abril','Maio','Junho',
+        'Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'
+    ];
 
     return (
         <Flex h="100vh" fontFamily="Poppins, sans-serif" bg={isDark ? 'gray.900' : 'gray.100'} color={isDark ? 'white' : 'black'}>
@@ -155,7 +190,7 @@ const Dashboard: React.FC = () => {
                                 <FiBarChart2 />
                                 <Text>Dashboard</Text>
                             </HStack>
-                            <HStack spacing={2} w="full" p={2} _hover={{ bg: 'blue.100', cursor: 'pointer' }} borderRadius="md">
+                            <HStack spacing={2} w="full" p={2} _hover={{ bg: 'blue.100', cursor: 'pointer' }} borderRadius="md" onClick={() => navigate('/estoque')}>
                                 <AiOutlineStock />
                                 <Text>Estoque</Text>
                             </HStack>
@@ -237,8 +272,13 @@ const Dashboard: React.FC = () => {
                         <Box bg="white" p={4} borderLeft="4px solid" borderColor="yellow.400" borderRadius="md">
                             <HStack justify="space-between">
                                 <Box>
-                                    <Text fontSize="sm" color="gray.500">Receita: Jan 2025</Text>
-                                    <Heading size="md">R$ 80.000,00</Heading>
+                                    <Text fontSize="sm" color="gray.500">Receita do Mês Atual</Text>
+                                    <Heading size="md">
+                                        {statsMesAtual?.valor_total_saida 
+                                            ? `R$ ${statsMesAtual.valor_total_saida.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` 
+                                            : '...'
+                                        }
+                                    </Heading>
                                 </Box>
                                 <MdPayments size={28} color="#F1C40F" />
                             </HStack>
@@ -263,8 +303,8 @@ const Dashboard: React.FC = () => {
                         <Box bg="white" p={4} borderLeft="4px solid" borderColor="red.400" borderRadius="md">
                             <HStack justify="space-between">
                                 <Box>
-                                    <Text fontSize="sm" color="gray.500">Medicamentos em falta</Text>
-                                    <Heading size="md">{criticoCount ?? '...'}</Heading>
+                                    <Text fontSize="sm" color="gray.500">Produtos em estoque crítico</Text>
+                                    <Heading size="md">{resumo?.produtos_estoque_critico ?? '...'}</Heading>
                                 </Box>
                                 <MdWarningAmber size={28} color="#E74C3C" />
                             </HStack>
@@ -299,25 +339,28 @@ const Dashboard: React.FC = () => {
 
                         <Box bg="white" p={4} borderRadius="md">
                             <HStack justify="space-between">
-                                <Text fontWeight="bold">Resumo Rápido do Mês</Text>
-                                <Select size="sm" variant="unstyled" textAlign="center" w="auto">
-                                    <option>Janeiro 2025 </option>
-                                    <option>Fevereiro 2025 </option>
-                                    <option>Março 2025 </option>
-                                    <option>Abril 2025 </option>
-                                    <option>Maio 2025 </option>
-                                    <option>Junho 2025 </option>
-                                    <option>Julho 2025 </option>
-                                </Select>
+                                <Text fontWeight="bold">Resumo do Mês</Text>
+                                <Menu>
+                                    <MenuButton as={Button} variant="outline" size="sm" rightIcon={<FiChevronDown />}>
+                                        {monthNames[selectedMonth - 1]} {selectedYear}
+                                    </MenuButton>
+                                    <MenuList>
+                                        {periodOptions.map(opt => (
+                                            <MenuItem key={`${opt.ano}-${opt.mes}`} onClick={() => { setSelectedMonth(opt.mes); setSelectedYear(opt.ano); }}>
+                                                {monthNames[opt.mes - 1]} {opt.ano}
+                                            </MenuItem>
+                                        ))}
+                                    </MenuList>
+                                </Menu>
                             </HStack>
                             <Divider my={3} />
                             <HStack justify="space-around">
                                 <Box textAlign="center">
-                                    <Heading size="md">70.856</Heading>
+                                    <Heading size="md">{statsPeriodo?.total_saidas?.toLocaleString() ?? '...'}</Heading>
                                     <Text>Total de Saídas Registradas</Text>
                                 </Box>
                                 <Box textAlign="center">
-                                    <Heading size="md">Nimesulida</Heading>
+                                    <Heading size="md">{itemMaisVendido ?? '...'}</Heading>
                                     <Text>Item Mais Retirado</Text>
                                 </Box>
                             </HStack>
@@ -339,8 +382,8 @@ const Dashboard: React.FC = () => {
                                 <Text>Produtos Vencidos</Text>
                             </Box>
                             <Box textAlign="center">
-                                <Heading size="md">{resumo?.produtos_estoque_baixo ?? '...'}</Heading>
-                                <Text>Produtos em Falta</Text>
+                                <Heading size="md">{resumo?.produtos_estoque_critico ?? '...'}</Heading>
+                                <Text>Produtos com Estoque Crítico</Text>
                             </Box>
                         </HStack>
                     </Box>

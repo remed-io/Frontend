@@ -33,6 +33,23 @@ export const getEstatisticasMovimentacoes = async () => {
   return api.get<EstatisticasMovimentacao>('/relatorios/movimentacoes/estatisticas');
 };
 
+/** Estatísticas de movimentações do mês atual para dashboard */
+export const getEstatisticasMovimentacoesMesAtual = async () => {
+  return api.get<EstatisticasMovimentacao>('/relatorios/movimentacoes/estatisticas/mes-atual');
+};
+/** Estatísticas de movimentações para período selecionado */
+export const getEstatisticasMovimentacoesPeriodo = async (mes: number, ano: number) => {
+  return api.get<EstatisticasMovimentacao>(`/relatorios/movimentacoes/estatisticas?mes=${mes}&ano=${ano}`);
+};
+/** Resposta com item mais vendido/retirado no período */
+export interface ItemMaisVendidoResponse {
+  item: string;
+}
+export const getItemMaisVendidoPeriodo = async (mes: number, ano: number) => {
+  const response = await api.get<ItemMaisVendidoResponse>(`/relatorios/movimentacoes/mais-vendido?mes=${mes}&ano=${ano}`);
+  return response.data;
+};
+
 // Resumo de estoque para dashboard
 export interface ResumoEstoque {
   total_itens: number;
@@ -61,6 +78,12 @@ export const getEstoqueDetalhado = async (): Promise<EstoqueDetalhado> => {
 
 export const getEstoqueCritico = async (): Promise<any[]> => {
   const response = await api.get<any[]>('/consulta-estoque/critico');
+  return response.data;
+};
+
+/** Alertas críticos do sistema */
+export const getAlertasCriticos = async (): Promise<any[]> => {
+  const response = await api.get<any[]>('/alertas/criticos');
   return response.data;
 };
 
