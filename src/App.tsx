@@ -4,6 +4,7 @@ import Login from './pages/Login.tsx'
 import Dashboard from './pages/Dashboard.tsx'
 import Estoque from './pages/Estoque.tsx'
 import ListaProdutos from './pages/ListaProdutos.tsx'
+import DetalheProduto from './pages/DetalheProduto.tsx'
 
 function App() {
   return (
@@ -18,6 +19,8 @@ function App() {
       <Route path="/estoque" element={<PrivateRoute><Estoque /></PrivateRoute>} />
       {/* Lista de Produtos protegido */}
       <Route path="/estoque/produtos" element={<PrivateRoute><ListaProdutos /></PrivateRoute>} />
+      {/* Detalhe de Produto protegido */}
+      <Route path="/estoque/produtos/:itemId" element={<PrivateRoute><DetalheProduto /></PrivateRoute>} />
       {/* Qualquer outra rota volta para login */}
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
