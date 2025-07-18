@@ -28,18 +28,24 @@ import {
     FormControl,
     FormLabel,
     Select,
+    Switch,
+    Tag,
+    TagLabel,
+    HStack,
 } from '@chakra-ui/react'
-import { FiEdit, FiSearch, FiArrowLeft, FiArrowRight } from 'react-icons/fi'
+import { FiEdit, FiSearch, FiArrowLeft, FiArrowRight, FiTrash2 } from 'react-icons/fi'
 import Sidebar from './Sidebar'
 import Header from '../components/Header'
-import {
+import api, {
     getEstoqueDetalhado,
+    getEstoquePorItemEstoque,
     getMedicamentoById,
     getCuidadoPessoalById,
     getSuplementoAlimentarById,
     updateMedicamento,
     updateCuidadoPessoal,
     updateSuplementoAlimentar,
+    updateItemEstoque,
     deleteItemEstoque,
 } from '../services/api'
 
@@ -58,6 +64,44 @@ const DetalheProduto = () => {
 
     // edit modal disclosure
     const { isOpen: isEditOpen, onOpen: onEditOpen, onClose: onEditClose } = useDisclosure()
+
+    // Ao abrir modal de edição, busca dados do backend
+    const handleOpenEdit = async () => {
+        try {
+            // Recarrega opções de armazém e fornecedor ao abrir edição
+            const [resArm, resFor, resRest] = await Promise.all([
+                api.get('/armazem'),
+                api.get('/fornecedor'),
+                api.get('/restricao-alimentar'),
+            ])
+            setArmazens(resArm.data)
+            setFornecedores(resFor.data)
+            setRestricoes(resRest.data)
+            const data = await getEstoquePorItemEstoque(Number(itemId))
+            const item = data[0]
+            setEstoqueItem(item)
+            let detail
+            const { tipo_produto, produto_id } = item
+            if (tipo_produto === 'medicamento') {
+                detail = await getMedicamentoById(produto_id)
+            } else if (tipo_produto === 'cuidado_pessoal') {
+                detail = await getCuidadoPessoalById(produto_id)
+            } else if (tipo_produto === 'suplemento_alimentar') {
+                detail = await getSuplementoAlimentarById(produto_id)
+            }
+            setProductDetail(detail)
+            // Popula o formulário de edição com dados do produto e estoque
+            let restricoes_suplemento = []
+            if (tipo_produto === 'suplemento_alimentar' && detail.restricoes_suplemento) {
+                restricoes_suplemento = detail.restricoes_suplemento
+            }
+            setEditForm({ ...detail, ...item, restricoes_suplemento })
+            onEditOpen()
+        } catch (error) {
+            console.error('Erro ao carregar dados para edição', error)
+            alert('Erro ao carregar dados de edição')
+        }
+    }
 
     const statusLabels: Record<string, string> = {
         vencido: 'Vencido',
@@ -93,13 +137,6 @@ const DetalheProduto = () => {
         }
         fetchData()
     }, [itemId])
-
-    // populate edit form when loaded
-    useEffect(() => {
-        if (productDetail && estoqueItem) {
-            setEditForm({ ...productDetail, lote: estoqueItem.lote, data_validade: estoqueItem.data_validade })
-        }
-    }, [productDetail, estoqueItem])
 
     // fetch data for selects
     useEffect(() => {
@@ -166,7 +203,7 @@ const DetalheProduto = () => {
                             minH="64px"
                             borderRadius="md"
                             fontSize="2xl"
-                        onClick={onEditOpen}
+                            onClick={handleOpenEdit}
                         />
                     </Flex>
                     <Text color="gray.600" mb={4}>
@@ -181,7 +218,7 @@ const DetalheProduto = () => {
                     {/* Área de conteúdo */}
                     <Flex gap={6}>
                         {/* Coluna esquerda: Informações do Produto */}
-                        <Box flex={1} bg="white" p={6} borderRadius="md" shadow="sm">
+                        <Box flex={1} bg="white" p={6} borderRadius="md" shadow="sm" fontFamily="Poppins, sans-serif">
                             <Flex justify="space-between" align="center" mb={4}>
                                 <Heading size="md" fontFamily="Poppins, sans-serif">Informações do Produto</Heading>
                             </Flex>
@@ -261,7 +298,7 @@ const DetalheProduto = () => {
                         </Box>
                         {/* Coluna direita: Controle e Importantes */}
                         <Box flex={1}>
-                            <Box bg="white" p={6} borderRadius="md" shadow="sm" mb={4}>
+                            <Box bg="white" p={6} borderRadius="md" shadow="sm" mb={4} fontFamily="Poppins, sans-serif">
                                 <Flex justify="space-between" align="center">
                                     <Heading size="md" fontFamily="Poppins, sans-serif">Controle de Estoque</Heading>
                                     <Button variant="link" size="sm" onClick={() => navigate(`/estoque/produtos/${item.item_estoque_id}`)}>
@@ -284,41 +321,59 @@ const DetalheProduto = () => {
                                     </Box>
                                 </Flex>
                             </Box>
-                            <Box bg="white" p={6} borderRadius="md" shadow="sm">
+                            <Box bg="white" p={6} borderRadius="md" shadow="sm" fontFamily="Poppins, sans-serif">
                                 <Flex justify="space-between" align="center" mb={4}>
                                     <Heading size="md" fontFamily="Poppins, sans-serif">Informações Importantes</Heading>
                                 </Flex>
                                 <Divider borderColor="gray.200" mb={4} />
                                 <Flex wrap="wrap" gap={4}>
-                                    {tarjaBadge}
-                                    {productDetail.necessita_receita && (
-                                        <Badge px={2} py={1} colorScheme="green" borderRadius="full">
-                                            Retenção de Receita
-                                        </Badge>
+                                    {estoqueItem.tipo_produto === 'medicamento' && (
+                                        <>
+                                            {tarjaBadge}
+                                            {productDetail.necessita_receita && (
+                                                <Badge px={2} py={1} colorScheme="green" borderRadius="full">
+                                                    Retenção de Receita
+                                                </Badge>
+                                            )}
+                                        </>
+                                    )}
+                                    {estoqueItem.tipo_produto === 'suplemento_alimentar' && (
+                                        <Tag colorScheme="blue" borderRadius="full">
+                                            <TagLabel>Registro ANVISA: {productDetail.registro_anvisa || '-'}</TagLabel>
+                                        </Tag>
+                                    )}
+                                    {estoqueItem.tipo_produto === 'cuidado_pessoal' && (
+                                        <Tag colorScheme="purple" borderRadius="full">
+                                            <TagLabel>Público Alvo: {productDetail.publico_alvo || '-'}</TagLabel>
+                                        </Tag>
                                     )}
                                 </Flex>
                             </Box>
                         </Box>
                     </Flex>
                     {/* Card de Status do Produto */}
-                    <Box bg="white" p={5} borderRadius="md" shadow="sm" mt={6} mb={6}>
+                    <Box bg="white" p={5} borderRadius="md" shadow="sm" mt={5} mb={6} fontFamily="Poppins, sans-serif">
                         <Flex justify="space-between" align="center" mb={4}>
                             <Heading size="md" fontFamily="Poppins, sans-serif">Status do Produto</Heading>
                             <Button variant="link" size="sm" onClick={() => navigate(`/estoque/produtos/${item.item_estoque_id}`)}>Ver Relatórios &raquo;</Button>
                         </Flex>
-                        <Divider borderColor="gray.200" mb={4} />
-                        <Flex justify="space-between" align="center">
-                            <Box textAlign="left">
+                        <Divider borderColor="gray.200" mb={5} />
+                        <Flex justify="space-between" align="center" >
+                            <Box textAlign="left" mr={0}>
                                 <Text fontSize="2xl" fontWeight="bold">{statusLabels[estoqueItem.status] || estoqueItem.status}</Text>
                                 <Text fontSize="sm" color="gray.600">Status</Text>
                             </Box>
-                            <Box textAlign="left">
+                            <Box textAlign="left" mr={0}>
                                 <Text fontSize="2xl" fontWeight="bold">{new Date(estoqueItem.data_validade).toLocaleDateString()}</Text>
                                 <Text fontSize="sm" color="gray.600">Data de Validade</Text>
                             </Box>
-                            <Box textAlign="left">
+                            <Box textAlign="left" mr={0}>
                                 <Text fontSize="2xl" fontWeight="bold">{estoqueItem.lote}</Text>
                                 <Text fontSize="sm" color="gray.600">Lote</Text>
+                            </Box>
+                            <Box textAlign="left">
+                                <Text fontSize="2xl" fontWeight="bold">R$ {Number(estoqueItem.preco).toFixed(2)}</Text>
+                                <Text fontSize="sm" color="gray.600">Preço</Text>
                             </Box>
                         </Flex>
                     </Box>
@@ -342,230 +397,214 @@ const DetalheProduto = () => {
                         </Button>
                     </Flex>
                     {/* Edit Modal */}
-                    <Modal isOpen={isEditOpen} onClose={onEditClose}>
+                    <Modal isOpen={isEditOpen} onClose={onEditClose} size="xl" scrollBehavior="inside">
                         <ModalOverlay />
-                        <ModalContent>
-                            <ModalHeader>Editar Produto</ModalHeader>
+                        <ModalContent maxW="800px" maxH="60vh">
+                            <ModalHeader fontFamily="Poppins, sans-serif" fontWeight="bold">
+                                {estoqueItem.tipo_produto === 'medicamento' && 'Editar Medicamento'}
+                                {estoqueItem.tipo_produto === 'cuidado_pessoal' && 'Editar Produto de Cuidado Pessoal'}
+                                {estoqueItem.tipo_produto === 'suplemento_alimentar' && 'Editar Suplemento Alimentar'}
+                            </ModalHeader>
                             <ModalCloseButton />
-                            <ModalBody>
-                                {estoqueItem.tipo_produto === 'medicamento' && (
-                                    <SimpleGrid columns={2} spacing={4} mb={4}>
-                                        <FormControl>
-                                            <FormLabel>Nome do Medicamento</FormLabel>
-                                            <Input
-                                                value={editForm.nome || ''}
-                                                onChange={e => setEditForm({ ...editForm, nome: e.target.value })}
-                                            />
-                                        </FormControl>
-                                        <FormControl>
-                                            <FormLabel>Dosagem</FormLabel>
-                                            <Input
-                                                value={editForm.dosagem || ''}
-                                                onChange={e => setEditForm({ ...editForm, dosagem: e.target.value })}
-                                            />
-                                        </FormControl>
-                                        <FormControl>
-                                            <FormLabel>Princípio Ativo</FormLabel>
-                                            <Input
-                                                value={editForm.principio_ativo || ''}
-                                                onChange={e => setEditForm({ ...editForm, principio_ativo: e.target.value })}
-                                            />
-                                        </FormControl>
-                                        <FormControl>
-                                            <FormLabel>Tarja</FormLabel>
-                                            <Select
-                                                value={editForm.tarja || ''}
-                                                onChange={e => setEditForm({ ...editForm, tarja: e.target.value })}
-                                            >
-                                                <option value="preta">Tarja Preta</option>
-                                                <option value="vermelha">Tarja Vermelha</option>
-                                                <option value="branca">Tarja Branca</option>
-                                                <option value="">Sem Tarja</option>
-                                            </Select>
-                                        </FormControl>
-                                        <FormControl>
-                                            <FormLabel>Forma Farmacêutica</FormLabel>
-                                            <Input
-                                                value={editForm.forma_farmaceutica || ''}
-                                                onChange={e => setEditForm({ ...editForm, forma_farmaceutica: e.target.value })}
-                                            />
-                                        </FormControl>
-                                        <FormControl>
-                                            <FormLabel>Fabricante</FormLabel>
-                                            <Input
-                                                value={editForm.fabricante || ''}
-                                                onChange={e => setEditForm({ ...editForm, fabricante: e.target.value })}
-                                            />
-                                        </FormControl>
-                                        <FormControl>
-                                            <FormLabel>Registro ANVISA</FormLabel>
-                                            <Input
-                                                value={editForm.registro_anvisa || ''}
-                                                onChange={e => setEditForm({ ...editForm, registro_anvisa: e.target.value })}
-                                            />
-                                        </FormControl>
-                                        <FormControl>
-                                            <FormLabel>Necessita Receita</FormLabel>
-                                            <Select
-                                                value={editForm.necessita_receita || 0}
-                                                onChange={e => setEditForm({ ...editForm, necessita_receita: Number(e.target.value) })}
-                                            >
-                                                <option value={0}>Não</option>
-                                                <option value={1}>Sim</option>
-                                            </Select>
-                                        </FormControl>
-                                    </SimpleGrid>
-                                )}
-                                {estoqueItem.tipo_produto === 'cuidado_pessoal' && (
-                                    <SimpleGrid columns={2} spacing={4} mb={4}>
-                                        <FormControl>
-                                            <FormLabel>Nome</FormLabel>
-                                            <Input
-                                                value={editForm.nome || ''}
-                                                onChange={e => setEditForm({ ...editForm, nome: e.target.value })}
-                                            />
-                                        </FormControl>
-                                        <FormControl>
-                                            <FormLabel>Subcategoria</FormLabel>
-                                            <Input
-                                                value={editForm.subcategoria_nome || ''}
-                                                isReadOnly
-                                            />
-                                        </FormControl>
-                                        <FormControl>
-                                            <FormLabel>Volume</FormLabel>
-                                            <Input
-                                                value={editForm.volume || ''}
-                                                onChange={e => setEditForm({ ...editForm, volume: e.target.value })}
-                                            />
-                                        </FormControl>
-                                        <FormControl>
-                                            <FormLabel>Quantidade</FormLabel>
-                                            <Input
-                                                type="number"
-                                                value={editForm.quantidade || ''}
-                                                onChange={e => setEditForm({ ...editForm, quantidade: Number(e.target.value) })}
-                                            />
-                                        </FormControl>
-                                        <FormControl>
-                                            <FormLabel>Fabricante</FormLabel>
-                                            <Input
-                                                value={editForm.fabricante || ''}
-                                                onChange={e => setEditForm({ ...editForm, fabricante: e.target.value })}
-                                            />
-                                        </FormControl>
-                                        <FormControl>
-                                            <FormLabel>Uso Recomendado</FormLabel>
-                                            <Input
-                                                value={editForm.uso_recomendado || ''}
-                                                onChange={e => setEditForm({ ...editForm, uso_recomendado: e.target.value })}
-                                            />
-                                        </FormControl>
-                                        <FormControl>
-                                            <FormLabel>Público Alvo</FormLabel>
-                                            <Input
-                                                value={editForm.publico_alvo || ''}
-                                                onChange={e => setEditForm({ ...editForm, publico_alvo: e.target.value })}
-                                            />
-                                        </FormControl>
-                                    </SimpleGrid>
-                                )}
-                                {estoqueItem.tipo_produto === 'suplemento_alimentar' && (
-                                    <SimpleGrid columns={2} spacing={4} mb={4}>
-                                        <FormControl>
-                                            <FormLabel>Nome</FormLabel>
-                                            <Input
-                                                value={editForm.nome || ''}
-                                                onChange={e => setEditForm({ ...editForm, nome: e.target.value })}
-                                            />
-                                        </FormControl>
-                                        <FormControl>
-                                            <FormLabel>Princípio Ativo</FormLabel>
-                                            <Input
-                                                value={editForm.principio_ativo || ''}
-                                                onChange={e => setEditForm({ ...editForm, principio_ativo: e.target.value })}
-                                            />
-                                        </FormControl>
-                                        <FormControl>
-                                            <FormLabel>Sabor</FormLabel>
-                                            <Input
-                                                value={editForm.sabor || ''}
-                                                onChange={e => setEditForm({ ...editForm, sabor: e.target.value })}
-                                            />
-                                        </FormControl>
-                                        <FormControl>
-                                            <FormLabel>Volume/Peso</FormLabel>
-                                            <Input
-                                                value={editForm.volume || editForm.peso_volume || ''}
-                                                onChange={e => setEditForm({ ...editForm, volume: e.target.value })}
-                                            />
-                                        </FormControl>
-                                        <FormControl>
-                                            <FormLabel>Fabricante</FormLabel>
-                                            <Input
-                                                value={editForm.fabricante || ''}
-                                                onChange={e => setEditForm({ ...editForm, fabricante: e.target.value })}
-                                            />
-                                        </FormControl>
-                                        <FormControl>
-                                            <FormLabel>Registro ANVISA</FormLabel>
-                                            <Input
-                                                value={editForm.registro_anvisa || ''}
-                                                onChange={e => setEditForm({ ...editForm, registro_anvisa: e.target.value })}
-                                            />
-                                        </FormControl>
-                                    </SimpleGrid>
-                                )}
-                                {/* Estoque e demais campos */}
-                                <SimpleGrid columns={2} spacing={4} mb={4}>
-                                    <FormControl>
-                                        <FormLabel>Lote</FormLabel>
-                                        <Input
-                                            value={editForm.lote || ''}
-                                            onChange={e => setEditForm({ ...editForm, lote: e.target.value })}
-                                        />
-                                    </FormControl>
-                                    <FormControl>
-                                        <FormLabel>Data de Validade</FormLabel>
-                                        <Input
-                                            type="date"
-                                            value={editForm.data_validade?.split('T')[0] || ''}
-                                            onChange={e => setEditForm({ ...editForm, data_validade: e.target.value })}
-                                        />
-                                    </FormControl>
-                                    <FormControl>
-                                        <FormLabel>Quantidade em Estoque</FormLabel>
-                                        <Input
-                                            type="number"
-                                            value={editForm.quantidade_atual || ''}
-                                            onChange={e => setEditForm({ ...editForm, quantidade_atual: Number(e.target.value) })}
-                                        />
-                                    </FormControl>
-                                    <FormControl>
-                                        <FormLabel>Local Armazenamento</FormLabel>
-                                        <Input
-                                            value={editForm.armazem_local || ''}
-                                            onChange={e => setEditForm({ ...editForm, armazem_local: e.target.value })}
-                                        />
-                                    </FormControl>
-                                    <FormControl>
-                                        <FormLabel>Preço</FormLabel>
-                                        <InputGroup>
-                                            <InputLeftAddon children="R$" />
-                                            <Input
-                                                type="number"
-                                                step="0.01"
-                                                value={editForm.preco || ''}
-                                                onChange={e => setEditForm({ ...editForm, preco: e.target.value })}
-                                            />
-                                        </InputGroup>
-                                    </FormControl>
-                                </SimpleGrid>
-                                {/* Adicione aqui condicionais para outros tipos de produto com seus campos correspondentes */}
+                            <ModalBody p={3} overflowY="auto">
+                                <form onSubmit={e => e.preventDefault()}>
+                                    {/* Informações do Produto (mesmo layout de AdicionarProduto) */}
+                                    <Box bg="white" p={4} rounded="md" shadow="sm" mb={0}>
+                                        {/* Campos específicos por tipo de produto */}
+                                        {estoqueItem.tipo_produto === 'medicamento' && (
+                                            <SimpleGrid columns={{ base: 1, md: 2, lg: 3, xl: 4 }} spacing={3} mb={0} fontFamily="Poppins, sans-serif">
+                                                {/* Nome, Fabricante, Princípio Ativo, Dosagem, Forma Farmacêutica, Registro ANVISA, Tarja, Necessita Receita */}
+                                                <FormControl>
+                                                    <FormLabel>Nome</FormLabel>
+                                                    <Input variant="filled" bg="gray.50" value={editForm.nome || ''} onChange={e => setEditForm({ ...editForm, nome: e.target.value })} />
+                                                </FormControl>
+                                                <FormControl>
+                                                    <FormLabel>Fabricante</FormLabel>
+                                                    <Input variant="filled" bg="gray.50" value={editForm.fabricante || ''} onChange={e => setEditForm({ ...editForm, fabricante: e.target.value })} />
+                                                </FormControl>
+                                                <FormControl>
+                                                    <FormLabel>Princípio Ativo</FormLabel>
+                                                    <Input variant="filled" bg="gray.50" value={editForm.principio_ativo || ''} onChange={e => setEditForm({ ...editForm, principio_ativo: e.target.value })} />
+                                                </FormControl>
+                                                <FormControl>
+                                                    <FormLabel>Dosagem</FormLabel>
+                                                    <Input variant="filled" bg="gray.50" value={editForm.dosagem || ''} onChange={e => setEditForm({ ...editForm, dosagem: e.target.value })} />
+                                                </FormControl>
+                                                <FormControl>
+                                                    <FormLabel >Forma Farma.</FormLabel>
+                                                    <Input variant="filled" bg="gray.50" value={editForm.forma_farmaceutica || ''} onChange={e => setEditForm({ ...editForm, forma_farmaceutica: e.target.value })} />
+                                                </FormControl>
+                                                <FormControl>
+                                                    <FormLabel>Registro ANVISA</FormLabel>
+                                                    <Input variant="filled" bg="gray.50" value={editForm.registro_anvisa || ''} onChange={e => setEditForm({ ...editForm, registro_anvisa: e.target.value })} />
+                                                </FormControl>
+                                                <FormControl>
+                                                    <FormLabel>Tarja</FormLabel>
+                                                    <Select value={editForm.tarja || ''} onChange={e => setEditForm({ ...editForm, tarja: e.target.value })}>
+                                                        <option value="preta">Tarja Preta</option>
+                                                        <option value="vermelha">Tarja Vermelha</option>
+                                                        <option value="branca">Tarja Branca</option>
+                                                        <option value="">Sem Tarja</option>
+                                                    </Select>
+                                                </FormControl>
+                                                <FormControl display="flex" alignItems="center">
+                                                    <FormLabel mb="0">Necessita Receita</FormLabel>
+                                                    <Switch isChecked={editForm.necessita_receita} onChange={e => setEditForm({ ...editForm, necessita_receita: e.target.checked })} />
+                                                </FormControl>
+                                            </SimpleGrid>
+                                        )}
+                                        {estoqueItem.tipo_produto === 'suplemento_alimentar' && (
+                                            <SimpleGrid columns={{ base: 1, md: 2, lg: 3, xl: 4 }} spacing={3} mb={0} fontFamily="Poppins, sans-serif">
+                                                {/* Nome, Fabricante, Princípio Ativo, Sabor, Peso/Volume, Registro ANVISA */}
+                                                <FormControl>
+                                                    <FormLabel>Nome</FormLabel>
+                                                    <Input variant="filled" bg="gray.50" value={editForm.nome || ''} onChange={e => setEditForm({ ...editForm, nome: e.target.value })} />
+                                                </FormControl>
+                                                <FormControl>
+                                                    <FormLabel>Fabricante</FormLabel>
+                                                    <Input variant="filled" bg="gray.50" value={editForm.fabricante || ''} onChange={e => setEditForm({ ...editForm, fabricante: e.target.value })} />
+                                                </FormControl>
+                                                <FormControl>
+                                                    <FormLabel>Princípio Ativo</FormLabel>
+                                                    <Input variant="filled" bg="gray.50" value={editForm.principio_ativo || ''} onChange={e => setEditForm({ ...editForm, principio_ativo: e.target.value })} />
+                                                </FormControl>
+                                                <FormControl>
+                                                    <FormLabel>Sabor</FormLabel>
+                                                    <Input variant="filled" bg="gray.50" value={editForm.sabor || ''} onChange={e => setEditForm({ ...editForm, sabor: e.target.value })} />
+                                                </FormControl>
+                                                <FormControl>
+                                                    <FormLabel>Peso/Volume</FormLabel>
+                                                    <Input variant="filled" bg="gray.50" value={editForm.peso_volume || ''} onChange={e => setEditForm({ ...editForm, peso_volume: e.target.value })} />
+                                                </FormControl>
+                                                <FormControl>
+                                                    <FormLabel>Registro ANVISA</FormLabel>
+                                                    <Input variant="filled" bg="gray.50" value={editForm.registro_anvisa || ''} onChange={e => setEditForm({ ...editForm, registro_anvisa: e.target.value })} />
+                                                </FormControl>
+                                            </SimpleGrid>
+                                        )}
+                                        {estoqueItem.tipo_produto === 'cuidado_pessoal' && (
+                                            <SimpleGrid columns={{ base: 1, md: 2, lg: 3, xl: 4 }} spacing={3} mb={0} fontFamily="Poppins, sans-serif">
+                                                {/* Nome, Fabricante, Subcategoria, Volume, Quantidade, Uso Recomendado, Público Alvo */}
+                                                <FormControl>
+                                                    <FormLabel>Nome</FormLabel>
+                                                    <Input variant="filled" bg="gray.50" value={editForm.nome || ''} onChange={e => setEditForm({ ...editForm, nome: e.target.value })} />
+                                                </FormControl>
+                                                <FormControl>
+                                                    <FormLabel>Fabricante</FormLabel>
+                                                    <Input variant="filled" bg="gray.50" value={editForm.fabricante || ''} onChange={e => setEditForm({ ...editForm, fabricante: e.target.value })} />
+                                                </FormControl>
+                                                <FormControl>
+                                                    <FormLabel>Subcategoria</FormLabel>
+                                                    <Select value={editForm.subcategoria_id || ''} onChange={e => setEditForm({ ...editForm, subcategoria_id: Number(e.target.value) })}>
+                                                        <option value="">Selecione subcategoria</option>
+                                                        {subcategorias.map(s => (
+                                                            <option key={s.id} value={s.id}>{s.nome}</option>
+                                                        ))}
+                                                    </Select>
+                                                </FormControl>
+                                                <FormControl>
+                                                    <FormLabel>Volume</FormLabel>
+                                                    <Input variant="filled" bg="gray.50" value={editForm.volume || ''} onChange={e => setEditForm({ ...editForm, volume: e.target.value })} />
+                                                </FormControl>
+                                                <FormControl>
+                                                    <FormLabel>Quantidade</FormLabel>
+                                                    <Input variant="filled" bg="gray.50" type="text" value={editForm.quantidade || ''} onChange={e => setEditForm({ ...editForm, quantidade: e.target.value })} />
+                                                </FormControl>
+                                                <FormControl>
+                                                    <FormLabel>Uso Recomendado</FormLabel>
+                                                    <Input variant="filled" bg="gray.50" value={editForm.uso_recomendado || ''} onChange={e => setEditForm({ ...editForm, uso_recomendado: e.target.value })} />
+                                                </FormControl>
+                                                <FormControl>
+                                                    <FormLabel>Público Alvo</FormLabel>
+                                                    <Input variant="filled" bg="gray.50" value={editForm.publico_alvo || ''} onChange={e => setEditForm({ ...editForm, publico_alvo: e.target.value })} />
+                                                </FormControl>
+                                            </SimpleGrid>
+                                        )}
+                                    </Box>
+                                    {/* Controle de Estoque */}
+                                    <Box bg="white" p={4} rounded="md" shadow="sm" fontFamily="Poppins, sans-serif">
+                                        <SimpleGrid columns={{ base: 1, md: 2, lg: 3, xl: 4 }} spacing={4} mb={4}>
+                                            <FormControl>
+                                                <FormLabel>Código de Barras</FormLabel>
+                                                <Input variant="filled" bg="gray.50" value={editForm.codigo_barras || ''} onChange={e => setEditForm({ ...editForm, codigo_barras: e.target.value })} />
+                                            </FormControl>
+                                            <FormControl>
+                                                <FormLabel>Armazém</FormLabel>
+                                                <Select
+                                                    value={editForm.armazem_id?.toString() || ''}
+                                                    onChange={e => setEditForm({ ...editForm, armazem_id: Number(e.target.value) })}
+                                                >
+                                                    <option value="">Selecione um armazém</option>
+                                                    {editForm.armazem_id && (
+                                                        <option key="current" value={editForm.armazem_id.toString()}>
+                                                            {editForm.armazem_local}
+                                                        </option>
+                                                    )}
+                                                    {armazens
+                                                        .filter(arm => arm.id !== editForm.armazem_id)
+                                                        .map(arm => (
+                                                            <option key={arm.id} value={arm.id.toString()}>
+                                                                {arm.local_armazem}
+                                                            </option>
+                                                        ))}
+                                                </Select>
+                                            </FormControl>
+                                            <FormControl>
+                                                <FormLabel>Fornecedor</FormLabel>
+                                                <Select
+                                                    value={editForm.fornecedor_id?.toString() || ''}
+                                                    onChange={e => setEditForm({ ...editForm, fornecedor_id: Number(e.target.value) })}
+                                                >
+                                                    <option value="">Selecione um fornecedor</option>
+                                                    {editForm.fornecedor_id && (
+                                                        <option key="current" value={editForm.fornecedor_id.toString()}>
+                                                            {editForm.fornecedor_nome}
+                                                        </option>
+                                                    )}
+                                                    {fornecedores
+                                                        .filter(item => item.id !== editForm.fornecedor_id)
+                                                        .map(item => (
+                                                            <option key={item.id} value={item.id.toString()}>
+                                                                {item.nome}
+                                                            </option>
+                                                        ))}
+                                                </Select>
+                                            </FormControl>
+                                            <FormControl>
+                                                <FormLabel>Data de Validade</FormLabel>
+                                                <Input
+                                                    type="date"
+                                                    value={editForm.data_validade?.split('T')[0] || ''}
+                                                    onChange={e => setEditForm({ ...editForm, data_validade: e.target.value })}
+                                                />
+                                            </FormControl>
+                                            <FormControl>
+                                                <FormLabel>Lote</FormLabel>
+                                                <Input
+                                                    value={editForm.lote || ''}
+                                                    onChange={e => setEditForm({ ...editForm, lote: e.target.value })}
+                                                />
+                                            </FormControl>
+                                            <FormControl>
+                                                <FormLabel>Preço</FormLabel>
+                                                <InputGroup>
+                                                    <InputLeftAddon children="R$" />
+                                                    <Input
+                                                        type="number"
+                                                        step="0.01"
+                                                        value={editForm.preco || ''}
+                                                        onChange={e => setEditForm({ ...editForm, preco: e.target.value })}
+                                                    />
+                                                </InputGroup>
+                                            </FormControl>
+                                        </SimpleGrid>
+                                    </Box>
+                                </form>
                             </ModalBody>
                             <ModalFooter>
                                 <Button colorScheme="blue" mr={3} onClick={async () => {
                                     try {
+                                        // Atualiza produto
                                         if (estoqueItem.tipo_produto === 'medicamento') {
                                             await updateMedicamento(productDetail.id, editForm)
                                         } else if (estoqueItem.tipo_produto === 'cuidado_pessoal') {
@@ -573,6 +612,20 @@ const DetalheProduto = () => {
                                         } else if (estoqueItem.tipo_produto === 'suplemento_alimentar') {
                                             await updateSuplementoAlimentar(productDetail.id, editForm)
                                         }
+
+                                        // Atualiza item_estoque
+                                        const itemEstoquePayload = {
+                                            codigo_barras: editForm.codigo_barras,
+                                            preco: Number(editForm.preco),
+                                            data_validade: editForm.data_validade,
+                                            fornecedor_id: editForm.fornecedor_id,
+                                            lote: editForm.lote,
+                                            produto_medicamento_id: estoqueItem.tipo_produto === 'medicamento' ? productDetail.id : null,
+                                            produto_cuidado_pessoal_id: estoqueItem.tipo_produto === 'cuidado_pessoal' ? productDetail.id : null,
+                                            produto_suplemento_alimentar_id: estoqueItem.tipo_produto === 'suplemento_alimentar' ? productDetail.id : null,
+                                        }
+                                        await updateItemEstoque(estoqueItem.item_estoque_id, itemEstoquePayload)
+
                                         onEditClose()
                                         // Recarrega os dados após atualização
                                         const data = await getEstoqueDetalhado()
@@ -585,7 +638,7 @@ const DetalheProduto = () => {
                                         setProductDetail(detail)
                                     } catch (error) {
                                         console.error(error)
-                                        alert('Erro ao atualizar produto: ' + (error.message || ''))
+                                        alert('Erro ao atualizar produto/estoque: ' + (error.message || ''))
                                     }
                                 }}>Salvar</Button>
                                 <Button variant="ghost" onClick={onEditClose}>Cancelar</Button>
@@ -594,8 +647,8 @@ const DetalheProduto = () => {
                     </Modal>
                 </Box>
             </Flex>
-        </Flex >
-    )
+        </Flex>
+    );
 }
 
-export default DetalheProduto
+export default DetalheProduto;

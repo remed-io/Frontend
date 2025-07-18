@@ -116,31 +116,31 @@ const AdicionarProduto: React.FC = () => {
                 quantidade: quantidadeEntrada,
                 armazem_id: form.armazem_local,
             })
-          // show success message and delay navigation
-          let msg = ''
-          if (tipo === 'medicamento') msg = 'Medicamento salvo com sucesso!'
-          else if (tipo === 'cuidado_pessoal') msg = 'Produto de cuidado pessoal salvo com sucesso!'
-          else msg = 'Suplemento alimentar cadastrado com sucesso!'
-          setSuccessMessage(msg)
-          onSuccessOpen()
+            // show success message and delay navigation
+            let msg = ''
+            if (tipo === 'medicamento') msg = 'Medicamento salvo com sucesso!'
+            else if (tipo === 'cuidado_pessoal') msg = 'Produto de cuidado pessoal salvo com sucesso!'
+            else msg = 'Suplemento alimentar cadastrado com sucesso!'
+            setSuccessMessage(msg)
+            onSuccessOpen()
         } catch (error) {
             console.error('Erro ao salvar:', error)
         }
     }
 
     useEffect(() => {
-      ;(async () => {
-        const [resArm, resForn, resRest, resSub] = await Promise.all([
-          api.get('/armazem'),
-          api.get('/fornecedor'),
-          api.get('/restricao-alimentar'),
-          api.get('/subcategoria-cuidado-pessoal'),
-        ])
-        setArmazens(resArm.data)
-        setFornecedores(resForn.data)
-        setRestricoes(resRest.data)
-        setSubcategorias(resSub.data)
-      })()
+        ; (async () => {
+            const [resArm, resForn, resRest, resSub] = await Promise.all([
+                api.get('/armazem'),
+                api.get('/fornecedor'),
+                api.get('/restricao-alimentar'),
+                api.get('/subcategoria-cuidado-pessoal'),
+            ])
+            setArmazens(resArm.data)
+            setFornecedores(resForn.data)
+            setRestricoes(resRest.data)
+            setSubcategorias(resSub.data)
+        })()
     }, [])
 
     return (
@@ -236,54 +236,6 @@ const AdicionarProduto: React.FC = () => {
                                             <FormLabel>Registro ANVISA</FormLabel>
                                             <Input variant="filled" bg="gray.50" placeholder="Digite o registro ANVISA" onChange={e => handleChange('registro_anvisa', e.target.value)} />
                                         </FormControl>
-                                        <FormControl>
-                                            <FormLabel>Restrições</FormLabel>
-                                            {/* Tags de restrições selecionadas */}
-                                            <Stack direction="row" wrap="wrap" spacing={2} mb={2}>
-                                                {(form.restricoes || []).map(id => {
-                                                     const item = restricoes.find(r => r.id === id)
-                                                     return item ? (
-                                                         <Tag key={item.id} size="md" borderRadius="full" variant="solid" colorScheme="blue">
-                                                             <TagLabel>{item.nome}</TagLabel>
-                                                             <IconButton
-                                                                 size="xs"
-                                                                 ml={1}
-                                                                 variant="ghost"
-                                                                 aria-label="Remover restrição"
-                                                                 icon={<FiTrash2 />}
-                                                                 onClick={() => handleChange('restricoes', (form.restricoes || []).filter(rid => rid !== item.id))}
-                                                             />
-                                                         </Tag>
-                                                     ) : null
-                                                })}
-                                            </Stack>
-                                            {/* Select para adicionar nova restrição */}
-                                            <HStack w="full">
-                                                <Select
-                                                    flex={1}
-                                                    variant="filled"
-                                                    bg="gray.50"
-                                                    placeholder="Adicionar restrição"
-                                                    value=""
-                                                    onChange={e => {
-                                                        const val = Number(e.target.value)
-                                                        handleChange('restricoes', [...(form.restricoes || []), val])
-                                                    }}
-                                                >
-                                                    {restricoes.filter(r => !(form.restricoes || []).includes(r.id)).map(r => (
-                                                        <option key={r.id} value={r.id}>{r.nome}</option>
-                                                    ))}
-                                                </Select>
-                                                <IconButton
-                                                    size="sm"
-                                                    variant="ghost"
-                                                    borderRadius="full"
-                                                    aria-label="Abrir modal restrição"
-                                                    icon={<FiPlus />}
-                                                    onClick={onRestricaoOpen}
-                                                />
-                                            </HStack>
-                                         </FormControl>
                                     </>
                                 )}
                                 {tipo === 'cuidado_pessoal' && (
@@ -298,7 +250,7 @@ const AdicionarProduto: React.FC = () => {
                                                     onChange={e => handleChange('subcategoria_id', e.target.value)}
                                                 >
                                                     {subcategorias.map(s => (
-                                                      <option key={s.id} value={s.id}>{s.nome}</option>
+                                                        <option key={s.id} value={s.id}>{s.nome}</option>
                                                     ))}
                                                 </Select>
                                                 <IconButton
@@ -361,7 +313,7 @@ const AdicionarProduto: React.FC = () => {
                                             }}
                                         >
                                             {armazens.map(a => (
-                                              <option key={a.id} value={a.id}>{a.local_armazem}</option>
+                                                <option key={a.id} value={a.id}>{a.local_armazem}</option>
                                             ))}
                                         </Select>
                                         <IconButton
@@ -400,7 +352,7 @@ const AdicionarProduto: React.FC = () => {
                                             onChange={e => handleChange('fornecedor_id', e.target.value)}
                                         >
                                             {fornecedores.map(f => (
-                                              <option key={f.id} value={f.id}>{f.nome}</option>
+                                                <option key={f.id} value={f.id}>{f.nome}</option>
                                             ))}
                                         </Select>
                                         <IconButton
@@ -418,7 +370,7 @@ const AdicionarProduto: React.FC = () => {
                                 <Button colorScheme="green" type="submit">Salvar Produto</Button>
                             </Flex>
                         </Box>
-                        </form>
+                    </form>
 
                     {/* Modal para criar Fornecedor */}
                     <Modal isOpen={isFornecedorOpen} onClose={onFornecedorClose}>
@@ -497,7 +449,7 @@ const AdicionarProduto: React.FC = () => {
                                     try {
                                         const novo = await createRestricaoAlimentar({ nome: form.nova_restricao_nome })
                                         setRestricoes(prev => [...prev, novo])
-                                        handleChange('restricoes', [...(form.restricoes||[]), novo.id])
+                                        handleChange('restricoes', [...(form.restricoes || []), novo.id])
                                         onRestricaoClose()
                                     } catch (error) {
                                         console.error('Erro ao criar restrição:', error)
@@ -595,30 +547,30 @@ const AdicionarProduto: React.FC = () => {
                             </ModalFooter>
                         </ModalContent>
                     </Modal>
-        {/* Modal de sucesso após cadastro */}
-        <Modal isOpen={isSuccessOpen} isCentered>
-            <ModalOverlay />
-            <ModalContent>
-                <ModalHeader>Sucesso</ModalHeader>
-                <ModalBody>
-                    <Text fontSize="md" textAlign="center" mb={4}>
-                        {successMessage}
-                    </Text>
-                </ModalBody>
-                <ModalFooter justifyContent="center">
-                    <Button
-                        colorScheme="blue"
-                        w="100px"
-                        onClick={() => {
-                            onSuccessClose()
-                            navigate('/estoque/produtos')
-                        }}
-                    >
-                        OK
-                    </Button>
-                </ModalFooter>
-            </ModalContent>
-        </Modal>
+                    {/* Modal de sucesso após cadastro */}
+                    <Modal isOpen={isSuccessOpen} isCentered>
+                        <ModalOverlay />
+                        <ModalContent>
+                            <ModalHeader>Sucesso</ModalHeader>
+                            <ModalBody>
+                                <Text fontSize="md" textAlign="center" mb={4}>
+                                    {successMessage}
+                                </Text>
+                            </ModalBody>
+                            <ModalFooter justifyContent="center">
+                                <Button
+                                    colorScheme="blue"
+                                    w="100px"
+                                    onClick={() => {
+                                        onSuccessClose()
+                                        navigate('/estoque/produtos')
+                                    }}
+                                >
+                                    OK
+                                </Button>
+                            </ModalFooter>
+                        </ModalContent>
+                    </Modal>
                 </Box>
             </Flex>
         </Flex>

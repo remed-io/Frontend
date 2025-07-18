@@ -180,11 +180,24 @@ export const updateSuplementoAlimentar = async (id: number, data: any) => {
   const response = await api.put(`/suplemento-alimentar/${id}`, data);
   return response.data;
 };
+
+// Atualiza item de estoque
+export const updateItemEstoque = async (id: number, data: any) => {
+  const response = await api.put(`/item-estoque/${id}`, data);
+  return response.data;
+};
+
 // Delete item estoque
 export const deleteItemEstoque = async (id: number) => {
   const response = await api.delete(`/item-estoque/${id}`);
   return response.data;
 };
+
+// Obter dados de estoque para um item específico
+export const getEstoquePorItemEstoque = async (id: number): Promise<any[]> => {
+  const response = await api.get<any[]>(`/consulta-estoque/por-item-estoque/${id}`)
+  return response.data
+}
 
 export default api;
 
