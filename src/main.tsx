@@ -17,3 +17,16 @@ createRoot(document.getElementById('root')!).render(
     </ChakraProvider>
   </StrictMode>,
 )
+
+// Hook global para capturar todos os logs do console.log e enviar para o backend
+const originalLog = console.log;
+console.log = function (...args) {
+  originalLog.apply(console, args);
+  try {
+    fetch('http://localhost:8000/frontend-log', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: args.map(a => typeof a === 'object' ? JSON.stringify(a) : String(a)).join(' ') })
+    });
+  } catch (e) { }
+};

@@ -78,7 +78,7 @@ const Sidebar = () => {
               <AiOutlineStock />
               <Text>Estoque</Text>
             </HStack>
-            <HStack spacing={2} w="full" p={2} _hover={{ bg: 'blue.100', cursor: 'pointer' }} borderRadius="md">
+            <HStack spacing={2} w="full" p={2} _hover={{ bg: 'blue.100', cursor: 'pointer' }} borderRadius="md" onClick={() => navigate('/movimentacoes')}>
               <FiShoppingCart />
               <Text>Movimentações</Text>
             </HStack>
