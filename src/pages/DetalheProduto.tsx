@@ -93,9 +93,9 @@ const DetalheProduto = () => {
             <Sidebar />
             <Flex direction="column" flex={1} bg="gray.100">
                 <Header />
-                <Box flex="1" p={6}>
+                <Box flex="1" p={5}>
                     {/* Botão para retornar à lista de produtos */}
-                    <Button leftIcon={<FiArrowLeft />} variant="outline" mb={4} onClick={() => navigate('/estoque/produtos')}>Voltar à Lista de Produtos</Button>
+                    <Button leftIcon={<FiArrowLeft />} variant="outline" mb={0} onClick={() => navigate('/estoque/produtos')}>Voltar à Lista de Produtos</Button>
                     {/* Breadcrumb e título */}
                     <Flex align="center" justify="space-between" mb={2}>
                         <Heading size="lg" fontFamily="Poppins, sans-serif">
@@ -245,7 +245,7 @@ const DetalheProduto = () => {
                         </Box>
                     </Flex>
                     {/* Card de Status do Produto */}
-                    <Box bg="white" p={6} borderRadius="md" shadow="sm" mt={6} mb={6}>
+                    <Box bg="white" p={4} borderRadius="md" shadow="sm" mt={6} mb={6}>
                         <Flex justify="space-between" align="center" mb={4}>
                             <Heading size="md" fontFamily="Poppins, sans-serif">Status do Produto</Heading>
                             <Button variant="link" size="sm" onClick={() => navigate(`/estoque/produtos/${item.item_estoque_id}`)}>Ver Relatórios &raquo;</Button>

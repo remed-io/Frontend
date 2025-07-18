@@ -141,6 +141,32 @@ export const createItemEstoque = async (data: any) => {
   return response.data;
 };
 
+// Cria registro de item armazenado
+export const createItemArmazenado = async (data: any) => {
+  const response = await api.post('/item_armazenado', data);
+  return response.data;
+};
+// Cria armazém
+export const createArmazem = async (data: any) => {
+  const response = await api.post('/armazem', data);
+  return response.data;
+};
+// Cria fornecedor
+export const createFornecedor = async (data: any) => {
+  const response = await api.post('/fornecedor', data);
+  return response.data;
+};
+// Cria restrição alimentar
+export const createRestricaoAlimentar = async (data: any) => {
+  const response = await api.post('/restricao-alimentar', data);
+  return response.data;
+};
+// Cria subcategoria de cuidado pessoal
+export const createSubcategoriaCuidadoPessoal = async (data: any) => {
+  const response = await api.post('/subcategoria-cuidado-pessoal', data);
+  return response.data;
+};
+
 export default api;
 
 // Estatísticas de movimentações para dashboard

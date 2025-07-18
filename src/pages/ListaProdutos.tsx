@@ -5,6 +5,7 @@ import {
     Box,
     Flex,
     Heading,
+    Text,
     Input,
     InputGroup,
     InputRightElement,
@@ -20,7 +21,7 @@ import {
     IconButton,
     Spacer,
 } from '@chakra-ui/react'
-import { FiSearch, FiPlus, FiArrowRightCircle } from 'react-icons/fi'
+import { FiSearch, FiPlus, FiArrowRightCircle, FiChevronLeft, FiChevronRight } from 'react-icons/fi'
 // import header icons inside Header component
 import Sidebar from './Sidebar'
 import Header from '../components/Header'
@@ -44,6 +45,14 @@ const ListaProdutos = () => {
         item.produto_nome.toLowerCase().includes(search.toLowerCase()) &&
         (category ? item.tipo_produto === category : true)
     )
+    // Paginação
+    const itemsPerPage = 8
+    const [currentPage, setCurrentPage] = useState(1)
+    const totalItems = filteredItems.length
+    const totalPages = Math.ceil(totalItems / itemsPerPage)
+    const startIndex = (currentPage - 1) * itemsPerPage
+    const endIndex = Math.min(startIndex + itemsPerPage, totalItems)
+    const currentItems = filteredItems.slice(startIndex, endIndex)
     // Extrair categorias (tipos de produto)
     const categories = Array.from(new Set(items.map(item => item.tipo_produto)))
     // Rótulos legíveis para categorias
@@ -102,7 +111,7 @@ const ListaProdutos = () => {
                                 </Tr>
                             </Thead>
                             <Tbody>
-                                {filteredItems.map(item => (
+                        {currentItems.map(item => (
                                     <Tr key={item.item_estoque_id}>
                                         <Td>{item.produto_nome}</Td>
                                         <Td>{item.codigo_barras}</Td>
@@ -133,7 +142,34 @@ const ListaProdutos = () => {
                             </Tbody>
                         </Table>
                     </Box>
-                    {/* TODO: Implement pagination controls here */}
+                    {/* Paginação */}
+                    <Flex mt={4} align="center" justify="space-between">
+                        <Text>{startIndex + 1} - {endIndex} de {totalItems}</Text>
+                        <HStack spacing={2}>
+                            <IconButton
+                                aria-label="Página anterior"
+                                icon={<FiChevronLeft />}
+                                onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                                isDisabled={currentPage === 1}
+                            />
+                            <Select
+                                w="auto"
+                                minW="140px"
+                                value={currentPage}
+                                onChange={e => setCurrentPage(Number(e.target.value))}
+                            >
+                                {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+                                    <option key={page} value={page}>Página {page}</option>
+                                ))}
+                            </Select>
+                            <IconButton
+                                aria-label="Próxima página"
+                                icon={<FiChevronRight />}
+                                onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                                isDisabled={currentPage === totalPages}
+                            />
+                        </HStack>
+                    </Flex>
                 </Box>
             </Flex>
         </Flex>

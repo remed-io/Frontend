@@ -1,5 +1,5 @@
 // @ts-nocheck
-import React, { ChangeEvent, FormEvent, useState } from 'react'
+import React, { ChangeEvent, FormEvent, useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
     Box,
@@ -20,17 +20,39 @@ import {
     Text,
     Stack,
     IconButton,
-    HStack
+    HStack,
+    Modal,
+    ModalOverlay,
+    ModalContent,
+    ModalHeader,
+    ModalCloseButton,
+    ModalBody,
+    ModalFooter,
+    useDisclosure,
+    Tag,
+    TagLabel
 } from '@chakra-ui/react'
+import api from '../services/api'
 import Sidebar from './Sidebar'
 import Header from '../components/Header'
-import { createMedicamento, createSuplementoAlimentar, createCuidadoPessoal, createItemEstoque } from '../services/api'
-import { FiPlus, FiArrowLeft } from 'react-icons/fi'
+import { createMedicamento, createSuplementoAlimentar, createCuidadoPessoal, createItemEstoque, createItemArmazenado, createArmazem, createFornecedor, createRestricaoAlimentar, createSubcategoriaCuidadoPessoal } from '../services/api'
+import { FiPlus, FiArrowLeft, FiTrash2 } from 'react-icons/fi'
 
 const AdicionarProduto: React.FC = () => {
     const navigate = useNavigate()
     const [tipo, setTipo] = useState<'medicamento' | 'suplemento_alimentar' | 'cuidado_pessoal'>('medicamento')
     const [form, setForm] = useState<Record<string, any>>({})
+    const [armazens, setArmazens] = useState<any[]>([])
+    const [fornecedores, setFornecedores] = useState<any[]>([])
+    const [restricoes, setRestricoes] = useState<any[]>([])
+    const [subcategorias, setSubcategorias] = useState<any[]>([])
+    const { isOpen: isFornecedorOpen, onOpen: onFornecedorOpen, onClose: onFornecedorClose } = useDisclosure()
+    const { isOpen: isRestricaoOpen, onOpen: onRestricaoOpen, onClose: onRestricaoClose } = useDisclosure()
+    const { isOpen: isSubcategoriaOpen, onOpen: onSubcategoriaOpen, onClose: onSubcategoriaClose } = useDisclosure()
+    const { isOpen: isArmazemOpen, onOpen: onArmazemOpen, onClose: onArmazemClose } = useDisclosure()
+    // success modal
+    const { isOpen: isSuccessOpen, onOpen: onSuccessOpen, onClose: onSuccessClose } = useDisclosure()
+    const [successMessage, setSuccessMessage] = useState<string>('')
 
     const tipos = [
         { value: 'medicamento', label: 'Medicamento', subtitle: 'Adicionar medicamento' },
@@ -52,6 +74,7 @@ const AdicionarProduto: React.FC = () => {
                     dosagem: form.dosagem,
                     principio_ativo: form.principio_ativo,
                     tarja: form.tarja,
+                    forma_farmaceutica: form.forma_farmaceutica,
                     fabricante: form.fabricante,
                     necessita_receita: form.necessita_receita,
                     registro_anvisa: form.registro_anvisa,
@@ -76,22 +99,49 @@ const AdicionarProduto: React.FC = () => {
                     publico_alvo: form.publico_alvo,
                 })
             }
-            await createItemEstoque({
-                tipo_produto: tipo,
+            const itemEstoqueCreated = await createItemEstoque({
+                codigo_barras: form.codigo_barras,
+                preco: Number(form.preco),
+                data_validade: form.data_validade,
+                fornecedor_id: Number(form.fornecedor_id),
+                lote: form.lote,
                 produto_medicamento_id: tipo === 'medicamento' ? created.id : null,
                 produto_suplemento_alimentar_id: tipo === 'suplemento_alimentar' ? created.id : null,
                 produto_cuidado_pessoal_id: tipo === 'cuidado_pessoal' ? created.id : null,
-                quantidade_minima: Number(form.quantidade_minima),
-                quantidade_atual: Number(form.quantidade_atual),
-                armazem_local: form.armazem_local,
-                lote: form.lote,
-                data_validade: form.data_validade,
             })
-            navigate('/estoque/produtos')
+
+            const quantidadeEntrada = Number(form.quantidade_atual) || 0
+            await createItemArmazenado({
+                item_estoque_id: itemEstoqueCreated.id,
+                quantidade: quantidadeEntrada,
+                armazem_id: form.armazem_local,
+            })
+          // show success message and delay navigation
+          let msg = ''
+          if (tipo === 'medicamento') msg = 'Medicamento salvo com sucesso!'
+          else if (tipo === 'cuidado_pessoal') msg = 'Produto de cuidado pessoal salvo com sucesso!'
+          else msg = 'Suplemento alimentar cadastrado com sucesso!'
+          setSuccessMessage(msg)
+          onSuccessOpen()
         } catch (error) {
             console.error('Erro ao salvar:', error)
         }
     }
+
+    useEffect(() => {
+      ;(async () => {
+        const [resArm, resForn, resRest, resSub] = await Promise.all([
+          api.get('/armazem'),
+          api.get('/fornecedor'),
+          api.get('/restricao-alimentar'),
+          api.get('/subcategoria-cuidado-pessoal'),
+        ])
+        setArmazens(resArm.data)
+        setFornecedores(resForn.data)
+        setRestricoes(resRest.data)
+        setSubcategorias(resSub.data)
+      })()
+    }, [])
 
     return (
         <Flex h="100vh" fontFamily="Poppins, sans-serif" bg="gray.100">
@@ -121,7 +171,7 @@ const AdicionarProduto: React.FC = () => {
                                 </Checkbox>
                             ))}
                         </Stack>
-                        <Box bg="white" p={4} rounded="md" shadow="md" mb={4}>
+                        <Box bg="white" p={3} rounded="md" shadow="md" mb={4}>
                             <Heading size="md" mb={2} fontFamily="Poppins, sans-serif">Informações do Produto</Heading>
                             <Divider mb={2} />
                             <SimpleGrid columns={{ base: 1, md: 2, lg: 3, xl: 4 }} spacing={4} mb={4}>
@@ -136,12 +186,17 @@ const AdicionarProduto: React.FC = () => {
                                 {tipo === 'medicamento' && (
                                     <>
                                         <FormControl>
+                                            <FormLabel>Princípio Ativo</FormLabel>
+                                            <Input variant="filled" bg="gray.50" placeholder="Digite o princípio ativo" onChange={e => handleChange('principio_ativo', e.target.value)} />
+                                        </FormControl>
+                                        <FormControl>
                                             <FormLabel>Dosagem</FormLabel>
                                             <Input variant="filled" bg="gray.50" placeholder="Digite a dosagem" onChange={e => handleChange('dosagem', e.target.value)} />
                                         </FormControl>
                                         <FormControl>
                                             <FormLabel>Tarja</FormLabel>
                                             <Select variant="filled" bg="gray.50" placeholder="Selecione a tarja" onChange={e => handleChange('tarja', e.target.value)}>
+                                                <option value="sem_tarja">Sem Tarja</option>
                                                 <option value="preta">Preta</option>
                                                 <option value="vermelha">Vermelha</option>
                                                 <option value="branca">Branca</option>
@@ -183,28 +238,52 @@ const AdicionarProduto: React.FC = () => {
                                         </FormControl>
                                         <FormControl>
                                             <FormLabel>Restrições</FormLabel>
-                                            <HStack w="full" spacing={2} align="center">
+                                            {/* Tags de restrições selecionadas */}
+                                            <Stack direction="row" wrap="wrap" spacing={2} mb={2}>
+                                                {(form.restricoes || []).map(id => {
+                                                     const item = restricoes.find(r => r.id === id)
+                                                     return item ? (
+                                                         <Tag key={item.id} size="md" borderRadius="full" variant="solid" colorScheme="blue">
+                                                             <TagLabel>{item.nome}</TagLabel>
+                                                             <IconButton
+                                                                 size="xs"
+                                                                 ml={1}
+                                                                 variant="ghost"
+                                                                 aria-label="Remover restrição"
+                                                                 icon={<FiTrash2 />}
+                                                                 onClick={() => handleChange('restricoes', (form.restricoes || []).filter(rid => rid !== item.id))}
+                                                             />
+                                                         </Tag>
+                                                     ) : null
+                                                })}
+                                            </Stack>
+                                            {/* Select para adicionar nova restrição */}
+                                            <HStack w="full">
                                                 <Select
-                                                    w="full"
-                                                    minW="250px"
+                                                    flex={1}
                                                     variant="filled"
                                                     bg="gray.50"
-                                                    placeholder="Selecione restrições"
-                                                    multiple
-                                                    onChange={e => handleChange('restricoes', Array.from(e.target.selectedOptions).map(o => o.value))}
+                                                    placeholder="Adicionar restrição"
+                                                    value=""
+                                                    onChange={e => {
+                                                        const val = Number(e.target.value)
+                                                        handleChange('restricoes', [...(form.restricoes || []), val])
+                                                    }}
                                                 >
-                                                    {/* TODO: mapear restrições */}
+                                                    {restricoes.filter(r => !(form.restricoes || []).includes(r.id)).map(r => (
+                                                        <option key={r.id} value={r.id}>{r.nome}</option>
+                                                    ))}
                                                 </Select>
                                                 <IconButton
                                                     size="sm"
                                                     variant="ghost"
                                                     borderRadius="full"
-                                                    aria-label="Adicionar restrição"
+                                                    aria-label="Abrir modal restrição"
                                                     icon={<FiPlus />}
-                                                    onClick={() => navigate('/restricoes/novo')}
+                                                    onClick={onRestricaoOpen}
                                                 />
                                             </HStack>
-                                        </FormControl>
+                                         </FormControl>
                                     </>
                                 )}
                                 {tipo === 'cuidado_pessoal' && (
@@ -218,7 +297,9 @@ const AdicionarProduto: React.FC = () => {
                                                     placeholder="Selecione a subcategoria"
                                                     onChange={e => handleChange('subcategoria_id', e.target.value)}
                                                 >
-                                                    {/* TODO: mapear opções */}
+                                                    {subcategorias.map(s => (
+                                                      <option key={s.id} value={s.id}>{s.nome}</option>
+                                                    ))}
                                                 </Select>
                                                 <IconButton
                                                     size="sm"
@@ -226,29 +307,7 @@ const AdicionarProduto: React.FC = () => {
                                                     borderRadius="full"
                                                     aria-label="Adicionar subcategoria"
                                                     icon={<FiPlus />}
-                                                    onClick={() => navigate('/subcategoria/novo')}
-                                                />
-                                            </HStack>
-                                        </FormControl>
-                                        <FormControl>
-                                            <FormLabel>Restrições</FormLabel>
-                                            <HStack>
-                                                <Select
-                                                    variant="filled"
-                                                    bg="gray.50"
-                                                    placeholder="Selecione restrições"
-                                                    multiple
-                                                    onChange={e => handleChange('restricoes', Array.from(e.target.selectedOptions).map(o => o.value))}
-                                                >
-                                                    {/* TODO: mapear restrições */}
-                                                </Select>
-                                                <IconButton
-                                                    size="sm"
-                                                    variant="ghost"
-                                                    borderRadius="full"
-                                                    aria-label="Adicionar restrição"
-                                                    icon={<FiPlus />}
-                                                    onClick={() => navigate('/restricoes/novo')}
+                                                    onClick={onSubcategoriaOpen}
                                                 />
                                             </HStack>
                                         </FormControl>
@@ -294,9 +353,16 @@ const AdicionarProduto: React.FC = () => {
                                             variant="filled"
                                             bg="gray.50"
                                             placeholder="Selecione armazém"
-                                            onChange={e => handleChange('armazem_local', e.target.value)}
+                                            onChange={e => {
+                                                const selectedId = Number(e.target.value)
+                                                handleChange('armazem_local', selectedId)
+                                                const found = armazens.find(a => a.id === selectedId)
+                                                handleChange('quantidade_minima', found ? found.quantidade_minima : '')
+                                            }}
                                         >
-                                            {/* TODO: mapear armazéns */}
+                                            {armazens.map(a => (
+                                              <option key={a.id} value={a.id}>{a.local_armazem}</option>
+                                            ))}
                                         </Select>
                                         <IconButton
                                             size="sm"
@@ -304,7 +370,7 @@ const AdicionarProduto: React.FC = () => {
                                             borderRadius="full"
                                             aria-label="Adicionar armazém"
                                             icon={<FiPlus />}
-                                            onClick={() => navigate('/armazem/novo')}
+                                            onClick={onArmazemOpen}
                                         />
                                     </HStack>
                                 </FormControl>
@@ -333,7 +399,9 @@ const AdicionarProduto: React.FC = () => {
                                             placeholder="Selecione fornecedor"
                                             onChange={e => handleChange('fornecedor_id', e.target.value)}
                                         >
-                                            {/* TODO: mapear fornecedores */}
+                                            {fornecedores.map(f => (
+                                              <option key={f.id} value={f.id}>{f.nome}</option>
+                                            ))}
                                         </Select>
                                         <IconButton
                                             size="sm"
@@ -341,7 +409,7 @@ const AdicionarProduto: React.FC = () => {
                                             borderRadius="full"
                                             aria-label="Adicionar fornecedor"
                                             icon={<FiPlus />}
-                                            onClick={() => navigate('/fornecedor/novo')}
+                                            onClick={onFornecedorOpen}
                                         />
                                     </HStack>
                                 </FormControl>
@@ -350,7 +418,207 @@ const AdicionarProduto: React.FC = () => {
                                 <Button colorScheme="green" type="submit">Salvar Produto</Button>
                             </Flex>
                         </Box>
-                    </form>
+                        </form>
+
+                    {/* Modal para criar Fornecedor */}
+                    <Modal isOpen={isFornecedorOpen} onClose={onFornecedorClose}>
+                        <ModalOverlay />
+                        <ModalContent>
+                            <ModalHeader>Novo Fornecedor</ModalHeader>
+                            <ModalCloseButton />
+                            <ModalBody>
+                                <FormControl mb={4}>
+                                    <FormLabel>Nome</FormLabel>
+                                    <Input
+                                        variant="filled"
+                                        bg="gray.50"
+                                        placeholder="Digite o nome do fornecedor"
+                                        onChange={e => handleChange('novo_fornecedor_nome', e.target.value)}
+                                    />
+                                </FormControl>
+                                <FormControl mb={4}>
+                                    <FormLabel>CNPJ</FormLabel>
+                                    <Input
+                                        variant="filled"
+                                        bg="gray.50"
+                                        placeholder="Digite o CNPJ"
+                                        onChange={e => handleChange('novo_fornecedor_cnpj', e.target.value)}
+                                    />
+                                </FormControl>
+                                <FormControl mb={4}>
+                                    <FormLabel>Contato</FormLabel>
+                                    <Input
+                                        variant="filled"
+                                        bg="gray.50"
+                                        placeholder="Digite o contato"
+                                        onChange={e => handleChange('novo_fornecedor_contato', e.target.value)}
+                                    />
+                                </FormControl>
+                            </ModalBody>
+                            <ModalFooter>
+                                <Button variant="ghost" mr={3} onClick={onFornecedorClose}>Cancelar</Button>
+                                <Button colorScheme="blue" onClick={async () => {
+                                    try {
+                                        const novo = await createFornecedor({
+                                            nome: form.novo_fornecedor_nome,
+                                            cnpj: form.novo_fornecedor_cnpj,
+                                            contato: form.novo_fornecedor_contato
+                                        })
+                                        setFornecedores(prev => [...prev, novo])
+                                        handleChange('fornecedor_id', novo.id)
+                                        onFornecedorClose()
+                                    } catch (error) {
+                                        console.error('Erro ao criar fornecedor:', error)
+                                    }
+                                }}>Salvar</Button>
+                            </ModalFooter>
+                        </ModalContent>
+                    </Modal>
+                    {/* Modal para criar Restrição */}
+                    <Modal isOpen={isRestricaoOpen} onClose={onRestricaoClose}>
+                        <ModalOverlay />
+                        <ModalContent>
+                            <ModalHeader>Nova Restrição Alimentar</ModalHeader>
+                            <ModalCloseButton />
+                            <ModalBody>
+                                <FormControl mb={4}>
+                                    <FormLabel>Nome</FormLabel>
+                                    <Input
+                                        variant="filled"
+                                        bg="gray.50"
+                                        placeholder="Digite o nome da restrição"
+                                        onChange={e => handleChange('nova_restricao_nome', e.target.value)}
+                                    />
+                                </FormControl>
+                            </ModalBody>
+                            <ModalFooter>
+                                <Button variant="ghost" mr={3} onClick={onRestricaoClose}>Cancelar</Button>
+                                <Button colorScheme="blue" onClick={async () => {
+                                    try {
+                                        const novo = await createRestricaoAlimentar({ nome: form.nova_restricao_nome })
+                                        setRestricoes(prev => [...prev, novo])
+                                        handleChange('restricoes', [...(form.restricoes||[]), novo.id])
+                                        onRestricaoClose()
+                                    } catch (error) {
+                                        console.error('Erro ao criar restrição:', error)
+                                    }
+                                }}>Salvar</Button>
+                            </ModalFooter>
+                        </ModalContent>
+                    </Modal>
+                    {/* Modal para criar Subcategoria */}
+                    <Modal isOpen={isSubcategoriaOpen} onClose={onSubcategoriaClose}>
+                        <ModalOverlay />
+                        <ModalContent>
+                            <ModalHeader>Nova Subcategoria de Cuidado Pessoal</ModalHeader>
+                            <ModalCloseButton />
+                            <ModalBody>
+                                <FormControl mb={4}>
+                                    <FormLabel>Nome</FormLabel>
+                                    <Input
+                                        variant="filled"
+                                        bg="gray.50"
+                                        placeholder="Digite o nome da subcategoria"
+                                        onChange={e => handleChange('nova_subcategoria_nome', e.target.value)}
+                                    />
+                                </FormControl>
+                                <FormControl mb={4}>
+                                    <FormLabel>Descrição</FormLabel>
+                                    <Input
+                                        variant="filled"
+                                        bg="gray.50"
+                                        placeholder="Digite a descrição"
+                                        onChange={e => handleChange('nova_subcategoria_descricao', e.target.value)}
+                                    />
+                                </FormControl>
+                            </ModalBody>
+                            <ModalFooter>
+                                <Button variant="ghost" mr={3} onClick={onSubcategoriaClose}>Cancelar</Button>
+                                <Button colorScheme="blue" onClick={async () => {
+                                    try {
+                                        const novo = await createSubcategoriaCuidadoPessoal({
+                                            nome: form.nova_subcategoria_nome,
+                                            descricao: form.nova_subcategoria_descricao
+                                        })
+                                        setSubcategorias(prev => [...prev, novo])
+                                        handleChange('subcategoria_id', novo.id)
+                                        onSubcategoriaClose()
+                                    } catch (error) {
+                                        console.error('Erro ao criar subcategoria:', error)
+                                    }
+                                }}>Salvar</Button>
+                            </ModalFooter>
+                        </ModalContent>
+                    </Modal>
+                    {/* Modal para criar Armazém */}
+                    <Modal isOpen={isArmazemOpen} onClose={onArmazemClose}>
+                        <ModalOverlay />
+                        <ModalContent>
+                            <ModalHeader>Novo Armazém</ModalHeader>
+                            <ModalCloseButton />
+                            <ModalBody>
+                                <FormControl mb={4}>
+                                    <FormLabel>Local Armazém</FormLabel>
+                                    <Input
+                                        variant="filled"
+                                        bg="gray.50"
+                                        placeholder="Digite o local do armazém"
+                                        onChange={e => handleChange('novo_armazem_local_armazem', e.target.value)}
+                                    />
+                                </FormControl>
+                                <FormControl>
+                                    <FormLabel>Quantidade Mínima</FormLabel>
+                                    <Input
+                                        variant="filled"
+                                        bg="gray.50"
+                                        type="number"
+                                        placeholder="Digite a quantidade mínima"
+                                        onChange={e => handleChange('novo_armazem_quantidade_minima', e.target.value)}
+                                    />
+                                </FormControl>
+                            </ModalBody>
+                            <ModalFooter>
+                                <Button variant="ghost" mr={3} onClick={onArmazemClose}>Cancelar</Button>
+                                <Button colorScheme="blue" onClick={async () => {
+                                    try {
+                                        const novo = await createArmazem({
+                                            local_armazem: form.novo_armazem_local_armazem,
+                                            quantidade_minima: Number(form.novo_armazem_quantidade_minima)
+                                        })
+                                        setArmazens(prev => [...prev, novo])
+                                        handleChange('armazem_local', novo.id)
+                                        onArmazemClose()
+                                    } catch (error) {
+                                        console.error('Erro ao criar armazém:', error)
+                                    }
+                                }}>Salvar</Button>
+                            </ModalFooter>
+                        </ModalContent>
+                    </Modal>
+        {/* Modal de sucesso após cadastro */}
+        <Modal isOpen={isSuccessOpen} isCentered>
+            <ModalOverlay />
+            <ModalContent>
+                <ModalHeader>Sucesso</ModalHeader>
+                <ModalBody>
+                    <Text fontSize="md" textAlign="center" mb={4}>
+                        {successMessage}
+                    </Text>
+                </ModalBody>
+                <ModalFooter justifyContent="center">
+                    <Button
+                        colorScheme="blue"
+                        w="100px"
+                        onClick={() => {
+                            onSuccessClose()
+                            navigate('/estoque/produtos')
+                        }}
+                    >
+                        OK
+                    </Button>
+                </ModalFooter>
+            </ModalContent>
+        </Modal>
                 </Box>
             </Flex>
         </Flex>
