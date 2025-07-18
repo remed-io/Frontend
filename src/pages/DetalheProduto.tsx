@@ -12,9 +12,22 @@ import {
     IconButton,
     Input,
     InputGroup,
-    InputRightElement,
+    InputLeftAddon,
     SimpleGrid,
+    Grid,
+    GridItem,
     Badge,
+    useDisclosure,
+    Modal,
+    ModalOverlay,
+    ModalContent,
+    ModalHeader,
+    ModalCloseButton,
+    ModalBody,
+    ModalFooter,
+    FormControl,
+    FormLabel,
+    Select,
 } from '@chakra-ui/react'
 import { FiEdit, FiSearch, FiArrowLeft, FiArrowRight } from 'react-icons/fi'
 import Sidebar from './Sidebar'
@@ -24,6 +37,10 @@ import {
     getMedicamentoById,
     getCuidadoPessoalById,
     getSuplementoAlimentarById,
+    updateMedicamento,
+    updateCuidadoPessoal,
+    updateSuplementoAlimentar,
+    deleteItemEstoque,
 } from '../services/api'
 
 const DetalheProduto = () => {
@@ -31,6 +48,17 @@ const DetalheProduto = () => {
     const navigate = useNavigate()
     const [estoqueItem, setEstoqueItem] = useState<any>(null)
     const [productDetail, setProductDetail] = useState<any>(null)
+    // edit modal
+    const [editForm, setEditForm] = useState<any>({})
+    // Select options for form
+    const [armazens, setArmazens] = useState<any[]>([])
+    const [fornecedores, setFornecedores] = useState<any[]>([])
+    const [restricoes, setRestricoes] = useState<any[]>([])
+    const [subcategorias, setSubcategorias] = useState<any[]>([])
+
+    // edit modal disclosure
+    const { isOpen: isEditOpen, onOpen: onEditOpen, onClose: onEditClose } = useDisclosure()
+
     const statusLabels: Record<string, string> = {
         vencido: 'Vencido',
         proximo_vencimento: 'Validade Próxima',
@@ -65,6 +93,33 @@ const DetalheProduto = () => {
         }
         fetchData()
     }, [itemId])
+
+    // populate edit form when loaded
+    useEffect(() => {
+        if (productDetail && estoqueItem) {
+            setEditForm({ ...productDetail, lote: estoqueItem.lote, data_validade: estoqueItem.data_validade })
+        }
+    }, [productDetail, estoqueItem])
+
+    // fetch data for selects
+    useEffect(() => {
+        (async () => {
+            try {
+                const [resArm, resFor, resRest, resSub] = await Promise.all([
+                    api.get('/armazem'),
+                    api.get('/fornecedor'),
+                    api.get('/restricao-alimentar'),
+                    api.get('/subcategoria-cuidado-pessoal'),
+                ])
+                setArmazens(resArm.data)
+                setFornecedores(resFor.data)
+                setRestricoes(resRest.data)
+                setSubcategorias(resSub.data)
+            } catch (error) {
+                console.error('Erro ao carregar selects', error)
+            }
+        })()
+    }, [])
 
     if (!estoqueItem || !productDetail) {
         return <Text p={6}>Carregando...</Text>
@@ -111,6 +166,7 @@ const DetalheProduto = () => {
                             minH="64px"
                             borderRadius="md"
                             fontSize="2xl"
+                        onClick={onEditOpen}
                         />
                     </Flex>
                     <Text color="gray.600" mb={4}>
@@ -245,7 +301,7 @@ const DetalheProduto = () => {
                         </Box>
                     </Flex>
                     {/* Card de Status do Produto */}
-                    <Box bg="white" p={4} borderRadius="md" shadow="sm" mt={6} mb={6}>
+                    <Box bg="white" p={5} borderRadius="md" shadow="sm" mt={6} mb={6}>
                         <Flex justify="space-between" align="center" mb={4}>
                             <Heading size="md" fontFamily="Poppins, sans-serif">Status do Produto</Heading>
                             <Button variant="link" size="sm" onClick={() => navigate(`/estoque/produtos/${item.item_estoque_id}`)}>Ver Relatórios &raquo;</Button>
@@ -268,9 +324,274 @@ const DetalheProduto = () => {
                     </Box>
                     {/* Ações: Deletar e Registrar Saída */}
                     <Flex mt={6} justify="space-between">
-                        <Button colorScheme="red">Deletar {estoqueItem.tipo_produto === 'medicamento' ? 'Medicamento' : estoqueItem.tipo_produto === 'cuidado_pessoal' ? 'Cuidado Pessoal' : 'Suplemento Alimentar'}</Button>
-                        <Button colorScheme="green">Registrar Saída</Button>
+                        <Button colorScheme="red" onClick={async () => {
+                            if (window.confirm('Confirma exclusão deste item de estoque?')) {
+                                try {
+                                    await deleteItemEstoque(estoqueItem.item_estoque_id)
+                                    navigate('/estoque/produtos')
+                                } catch (error) {
+                                    console.error(error)
+                                    alert('Não foi possível excluir o item de estoque. Verifique se existem registros relacionados.')
+                                }
+                            }
+                        }}>
+                            Excluir Item
+                        </Button>
+                        <Button colorScheme="blue" leftIcon={<FiArrowRight />} onClick={() => navigate(`/estoque/produtos/${estoqueItem.item_estoque_id}`)}>
+                            Registrar Saída
+                        </Button>
                     </Flex>
+                    {/* Edit Modal */}
+                    <Modal isOpen={isEditOpen} onClose={onEditClose}>
+                        <ModalOverlay />
+                        <ModalContent>
+                            <ModalHeader>Editar Produto</ModalHeader>
+                            <ModalCloseButton />
+                            <ModalBody>
+                                {estoqueItem.tipo_produto === 'medicamento' && (
+                                    <SimpleGrid columns={2} spacing={4} mb={4}>
+                                        <FormControl>
+                                            <FormLabel>Nome do Medicamento</FormLabel>
+                                            <Input
+                                                value={editForm.nome || ''}
+                                                onChange={e => setEditForm({ ...editForm, nome: e.target.value })}
+                                            />
+                                        </FormControl>
+                                        <FormControl>
+                                            <FormLabel>Dosagem</FormLabel>
+                                            <Input
+                                                value={editForm.dosagem || ''}
+                                                onChange={e => setEditForm({ ...editForm, dosagem: e.target.value })}
+                                            />
+                                        </FormControl>
+                                        <FormControl>
+                                            <FormLabel>Princípio Ativo</FormLabel>
+                                            <Input
+                                                value={editForm.principio_ativo || ''}
+                                                onChange={e => setEditForm({ ...editForm, principio_ativo: e.target.value })}
+                                            />
+                                        </FormControl>
+                                        <FormControl>
+                                            <FormLabel>Tarja</FormLabel>
+                                            <Select
+                                                value={editForm.tarja || ''}
+                                                onChange={e => setEditForm({ ...editForm, tarja: e.target.value })}
+                                            >
+                                                <option value="preta">Tarja Preta</option>
+                                                <option value="vermelha">Tarja Vermelha</option>
+                                                <option value="branca">Tarja Branca</option>
+                                                <option value="">Sem Tarja</option>
+                                            </Select>
+                                        </FormControl>
+                                        <FormControl>
+                                            <FormLabel>Forma Farmacêutica</FormLabel>
+                                            <Input
+                                                value={editForm.forma_farmaceutica || ''}
+                                                onChange={e => setEditForm({ ...editForm, forma_farmaceutica: e.target.value })}
+                                            />
+                                        </FormControl>
+                                        <FormControl>
+                                            <FormLabel>Fabricante</FormLabel>
+                                            <Input
+                                                value={editForm.fabricante || ''}
+                                                onChange={e => setEditForm({ ...editForm, fabricante: e.target.value })}
+                                            />
+                                        </FormControl>
+                                        <FormControl>
+                                            <FormLabel>Registro ANVISA</FormLabel>
+                                            <Input
+                                                value={editForm.registro_anvisa || ''}
+                                                onChange={e => setEditForm({ ...editForm, registro_anvisa: e.target.value })}
+                                            />
+                                        </FormControl>
+                                        <FormControl>
+                                            <FormLabel>Necessita Receita</FormLabel>
+                                            <Select
+                                                value={editForm.necessita_receita || 0}
+                                                onChange={e => setEditForm({ ...editForm, necessita_receita: Number(e.target.value) })}
+                                            >
+                                                <option value={0}>Não</option>
+                                                <option value={1}>Sim</option>
+                                            </Select>
+                                        </FormControl>
+                                    </SimpleGrid>
+                                )}
+                                {estoqueItem.tipo_produto === 'cuidado_pessoal' && (
+                                    <SimpleGrid columns={2} spacing={4} mb={4}>
+                                        <FormControl>
+                                            <FormLabel>Nome</FormLabel>
+                                            <Input
+                                                value={editForm.nome || ''}
+                                                onChange={e => setEditForm({ ...editForm, nome: e.target.value })}
+                                            />
+                                        </FormControl>
+                                        <FormControl>
+                                            <FormLabel>Subcategoria</FormLabel>
+                                            <Input
+                                                value={editForm.subcategoria_nome || ''}
+                                                isReadOnly
+                                            />
+                                        </FormControl>
+                                        <FormControl>
+                                            <FormLabel>Volume</FormLabel>
+                                            <Input
+                                                value={editForm.volume || ''}
+                                                onChange={e => setEditForm({ ...editForm, volume: e.target.value })}
+                                            />
+                                        </FormControl>
+                                        <FormControl>
+                                            <FormLabel>Quantidade</FormLabel>
+                                            <Input
+                                                type="number"
+                                                value={editForm.quantidade || ''}
+                                                onChange={e => setEditForm({ ...editForm, quantidade: Number(e.target.value) })}
+                                            />
+                                        </FormControl>
+                                        <FormControl>
+                                            <FormLabel>Fabricante</FormLabel>
+                                            <Input
+                                                value={editForm.fabricante || ''}
+                                                onChange={e => setEditForm({ ...editForm, fabricante: e.target.value })}
+                                            />
+                                        </FormControl>
+                                        <FormControl>
+                                            <FormLabel>Uso Recomendado</FormLabel>
+                                            <Input
+                                                value={editForm.uso_recomendado || ''}
+                                                onChange={e => setEditForm({ ...editForm, uso_recomendado: e.target.value })}
+                                            />
+                                        </FormControl>
+                                        <FormControl>
+                                            <FormLabel>Público Alvo</FormLabel>
+                                            <Input
+                                                value={editForm.publico_alvo || ''}
+                                                onChange={e => setEditForm({ ...editForm, publico_alvo: e.target.value })}
+                                            />
+                                        </FormControl>
+                                    </SimpleGrid>
+                                )}
+                                {estoqueItem.tipo_produto === 'suplemento_alimentar' && (
+                                    <SimpleGrid columns={2} spacing={4} mb={4}>
+                                        <FormControl>
+                                            <FormLabel>Nome</FormLabel>
+                                            <Input
+                                                value={editForm.nome || ''}
+                                                onChange={e => setEditForm({ ...editForm, nome: e.target.value })}
+                                            />
+                                        </FormControl>
+                                        <FormControl>
+                                            <FormLabel>Princípio Ativo</FormLabel>
+                                            <Input
+                                                value={editForm.principio_ativo || ''}
+                                                onChange={e => setEditForm({ ...editForm, principio_ativo: e.target.value })}
+                                            />
+                                        </FormControl>
+                                        <FormControl>
+                                            <FormLabel>Sabor</FormLabel>
+                                            <Input
+                                                value={editForm.sabor || ''}
+                                                onChange={e => setEditForm({ ...editForm, sabor: e.target.value })}
+                                            />
+                                        </FormControl>
+                                        <FormControl>
+                                            <FormLabel>Volume/Peso</FormLabel>
+                                            <Input
+                                                value={editForm.volume || editForm.peso_volume || ''}
+                                                onChange={e => setEditForm({ ...editForm, volume: e.target.value })}
+                                            />
+                                        </FormControl>
+                                        <FormControl>
+                                            <FormLabel>Fabricante</FormLabel>
+                                            <Input
+                                                value={editForm.fabricante || ''}
+                                                onChange={e => setEditForm({ ...editForm, fabricante: e.target.value })}
+                                            />
+                                        </FormControl>
+                                        <FormControl>
+                                            <FormLabel>Registro ANVISA</FormLabel>
+                                            <Input
+                                                value={editForm.registro_anvisa || ''}
+                                                onChange={e => setEditForm({ ...editForm, registro_anvisa: e.target.value })}
+                                            />
+                                        </FormControl>
+                                    </SimpleGrid>
+                                )}
+                                {/* Estoque e demais campos */}
+                                <SimpleGrid columns={2} spacing={4} mb={4}>
+                                    <FormControl>
+                                        <FormLabel>Lote</FormLabel>
+                                        <Input
+                                            value={editForm.lote || ''}
+                                            onChange={e => setEditForm({ ...editForm, lote: e.target.value })}
+                                        />
+                                    </FormControl>
+                                    <FormControl>
+                                        <FormLabel>Data de Validade</FormLabel>
+                                        <Input
+                                            type="date"
+                                            value={editForm.data_validade?.split('T')[0] || ''}
+                                            onChange={e => setEditForm({ ...editForm, data_validade: e.target.value })}
+                                        />
+                                    </FormControl>
+                                    <FormControl>
+                                        <FormLabel>Quantidade em Estoque</FormLabel>
+                                        <Input
+                                            type="number"
+                                            value={editForm.quantidade_atual || ''}
+                                            onChange={e => setEditForm({ ...editForm, quantidade_atual: Number(e.target.value) })}
+                                        />
+                                    </FormControl>
+                                    <FormControl>
+                                        <FormLabel>Local Armazenamento</FormLabel>
+                                        <Input
+                                            value={editForm.armazem_local || ''}
+                                            onChange={e => setEditForm({ ...editForm, armazem_local: e.target.value })}
+                                        />
+                                    </FormControl>
+                                    <FormControl>
+                                        <FormLabel>Preço</FormLabel>
+                                        <InputGroup>
+                                            <InputLeftAddon children="R$" />
+                                            <Input
+                                                type="number"
+                                                step="0.01"
+                                                value={editForm.preco || ''}
+                                                onChange={e => setEditForm({ ...editForm, preco: e.target.value })}
+                                            />
+                                        </InputGroup>
+                                    </FormControl>
+                                </SimpleGrid>
+                                {/* Adicione aqui condicionais para outros tipos de produto com seus campos correspondentes */}
+                            </ModalBody>
+                            <ModalFooter>
+                                <Button colorScheme="blue" mr={3} onClick={async () => {
+                                    try {
+                                        if (estoqueItem.tipo_produto === 'medicamento') {
+                                            await updateMedicamento(productDetail.id, editForm)
+                                        } else if (estoqueItem.tipo_produto === 'cuidado_pessoal') {
+                                            await updateCuidadoPessoal(productDetail.id, editForm)
+                                        } else if (estoqueItem.tipo_produto === 'suplemento_alimentar') {
+                                            await updateSuplementoAlimentar(productDetail.id, editForm)
+                                        }
+                                        onEditClose()
+                                        // Recarrega os dados após atualização
+                                        const data = await getEstoqueDetalhado()
+                                        const item = data.itens.find((i: any) => String(i.item_estoque_id) === itemId)
+                                        setEstoqueItem(item)
+                                        let detail
+                                        if (item.tipo_produto === 'medicamento') detail = await getMedicamentoById(item.produto_id)
+                                        else if (item.tipo_produto === 'cuidado_pessoal') detail = await getCuidadoPessoalById(item.produto_id)
+                                        else if (item.tipo_produto === 'suplemento_alimentar') detail = await getSuplementoAlimentarById(item.produto_id)
+                                        setProductDetail(detail)
+                                    } catch (error) {
+                                        console.error(error)
+                                        alert('Erro ao atualizar produto: ' + (error.message || ''))
+                                    }
+                                }}>Salvar</Button>
+                                <Button variant="ghost" onClick={onEditClose}>Cancelar</Button>
+                            </ModalFooter>
+                        </ModalContent>
+                    </Modal>
                 </Box>
             </Flex>
         </Flex >

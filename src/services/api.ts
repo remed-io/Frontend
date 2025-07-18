@@ -167,6 +167,25 @@ export const createSubcategoriaCuidadoPessoal = async (data: any) => {
   return response.data;
 };
 
+// Update resources
+export const updateMedicamento = async (id: number, data: any) => {
+  const response = await api.put(`/medicamento/${id}`, data);
+  return response.data;
+};
+export const updateCuidadoPessoal = async (id: number, data: any) => {
+  const response = await api.put(`/cuidado-pessoal/${id}`, data);
+  return response.data;
+};
+export const updateSuplementoAlimentar = async (id: number, data: any) => {
+  const response = await api.put(`/suplemento-alimentar/${id}`, data);
+  return response.data;
+};
+// Delete item estoque
+export const deleteItemEstoque = async (id: number) => {
+  const response = await api.delete(`/item-estoque/${id}`);
+  return response.data;
+};
+
 export default api;
 
 // Estatísticas de movimentações para dashboard

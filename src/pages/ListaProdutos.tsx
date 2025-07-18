@@ -126,8 +126,8 @@ const ListaProdutos = () => {
                                                     aria-label="Registrar Saída"
                                                     icon={<FiArrowRightCircle size={18} color="white" />}
                                                     onClick={() => navigate(`/movimentacoes/saida/${item.item_estoque_id}`)}
-                                                    bg="#01A768"
-                                                    _hover={{ bg: '#019658' }}
+                                                    bg="blue"
+                                                    _hover={{ bg: 'darkblue' }}
                                                     borderRadius="4px"
                                                     w="30px"
                                                     h="30px"
