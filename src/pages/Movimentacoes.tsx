@@ -6,6 +6,7 @@ import { useNavigate } from 'react-router-dom'
 import { MdLogin, MdLogout } from 'react-icons/md'
 import { useState, useEffect } from 'react'
 import api from '../services/api'
+import { Form } from 'react-router-dom'
 
 const Movimentacoes = () => {
     const navigate = useNavigate()
@@ -138,7 +139,7 @@ function EntradaEstoqueForm() {
         setForm({ ...form, item_estoque_id: itemId })
         setBuscaItem(nome)
         setShowDropdown(false)
-        // Busca informações do item selecionado
+        // Busca informações do item selecionado (entrada)
         try {
             const res = await api.get(`/consulta-estoque/por-item-estoque/${itemId}`)
             const itemData = res.data[0]
@@ -307,9 +308,11 @@ function SaidaEstoqueForm() {
     const itensFiltrados = itensEstoque.filter(item => item.produto_nome.toLowerCase().includes(buscaItem.toLowerCase()))
 
     const handleSelectSaidaItem = async item => {
-        setFormSaida({ ...formSaida, item_estoque_id: item.item_estoque_id })
+        // Seleciona item e prepara formulário
+        setFormSaida(prev => ({ ...prev, item_estoque_id: item.item_estoque_id }))
         setBuscaItem(item.produto_nome + ' - Lote ' + item.lote)
         setShowDropdown(false)
+
         // Verificar necessidade de receita apenas para medicamentos
         let necessita = false
         if (item.tipo_produto === 'medicamento') {
@@ -320,7 +323,30 @@ function SaidaEstoqueForm() {
                 necessita = false
             }
         }
-        setInfoItem({ necessita_receita: necessita })
+
+        // Busca informações de estoque e armazém
+        let armazemNome = ''
+        let quantidadeAtual = ''
+        let armazemId = ''
+        try {
+            const resStock = await api.get(`/consulta-estoque/por-item-estoque/${item.item_estoque_id}`)
+            const itemData = resStock.data[0]
+            armazemId = itemData.armazem_id
+            quantidadeAtual = itemData.quantidade_atual
+            // Obtém nome do armazém a partir do estado
+            const arm = armazens.find(a => a.id === armazemId)
+            armazemNome = arm?.local_armazem || arm?.nome || ''
+        } catch (err) {
+            console.error('Erro ao buscar dados do estoque:', err)
+        }
+
+        // Atualiza formulário e estado de informações para exibição
+        setFormSaida(prev => ({ ...prev, armazem_id: armazemId }))
+        setInfoItem({
+            necessita_receita: necessita,
+            armazem: armazemNome || 'Não informado',
+            quantidade_atual: quantidadeAtual ?? 'Não informado'
+        })
     }
 
     const handleSubmitSaida = async e => {
@@ -373,17 +399,20 @@ function SaidaEstoqueForm() {
                             )}
                         </Box>
                         <input type="hidden" name="item_estoque_id" value={formSaida.item_estoque_id} />
+
+                        {/* Armazém atual e quantidade atual (não editáveis) */}
+                        <input type="hidden" name="armazem_id" value={formSaida.armazem_id} />
+                        {infoItem && (
+                            <Box mt={2} p={2} bg="gray.50" borderRadius="md" fontSize="sm">
+                                <Text color="gray.700"><b>Armazém atual:</b> {infoItem.armazem}</Text>
+                                <Text color="gray.700"><b>Quantidade atual:</b> {infoItem.quantidade_atual}</Text>
+                            </Box>
+                        )}
+
                     </FormControl>
                     <FormControl isRequired>
                         <FormLabel>Quantidade</FormLabel>
                         <Input type="number" min={1} value={formSaida.quantidade} onChange={e => setFormSaida({ ...formSaida, quantidade: e.target.value })} />
-                    </FormControl>
-                    <FormControl isRequired>
-                        <FormLabel>Armazém de Destino</FormLabel>
-                        <Select value={formSaida.armazem_id} onChange={e => setFormSaida({ ...formSaida, armazem_id: e.target.value })}>
-                            <option value="">Selecione o armazém</option>
-                            {armazens.map(arm => (<option key={arm.id} value={arm.id}>{arm.local_armazem}</option>))}
-                        </Select>
                     </FormControl>
 
                     {infoItem?.necessita_receita && (
@@ -396,14 +425,18 @@ function SaidaEstoqueForm() {
                                 <FormLabel>Nome do Comprador</FormLabel>
                                 <Input value={formSaida.nome_comprador} onChange={e => setFormSaida({ ...formSaida, nome_comprador: e.target.value })} />
                             </FormControl>
-                            <FormControl isRequired>
-                                <FormLabel>Receita Digital</FormLabel>
+                            <FormControl>
+                                <FormLabel>Receita Digital (opcional)</FormLabel>
                                 <Input type="file" onChange={e => setFormSaida({ ...formSaida, receita_digital: e.target.files[0] })} />
                             </FormControl>
                         </>
                     )}
                 </SimpleGrid>
+
             </form>
+            <FormControl>
+
+            </FormControl>
         </Box>
     )
 }

@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react'
+// React import not required with new JSX transform
 import { Routes, Route, Navigate } from 'react-router-dom'
 import Login from './pages/Login.tsx'
 import Dashboard from './pages/Dashboard.tsx'
@@ -7,6 +7,7 @@ import ListaProdutos from './pages/ListaProdutos.tsx'
 import DetalheProduto from './pages/DetalheProduto.tsx'
 import AdicionarProduto from './pages/AdicionarProduto.tsx'
 import Movimentacoes from './pages/Movimentacoes.tsx'
+import ListaUsuarios from './pages/ListaUsuarios.tsx'
 
 function App() {
   return (
@@ -27,13 +28,15 @@ function App() {
       <Route path="/estoque/produtos/:itemId" element={<PrivateRoute><DetalheProduto /></PrivateRoute>} />
       {/* Movimentações protegido */}
       <Route path="/movimentacoes" element={<PrivateRoute><Movimentacoes /></PrivateRoute>} />
+      {/* Lista de Usuários protegido */}
+      <Route path="/usuarios" element={<PrivateRoute><ListaUsuarios /></PrivateRoute>} />
       {/* Qualquer outra rota volta para login */}
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   )
 }
 
-function PrivateRoute({ children }: { children: ReactNode }) {
+function PrivateRoute({ children }: any) {
   const isAuth = Boolean(localStorage.getItem('token'))
   return isAuth ? children : <Navigate to="/login" replace />
 }

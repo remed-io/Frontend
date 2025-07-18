@@ -178,7 +178,7 @@ const Dashboard: React.FC = () => {
                             <HStack justify="space-between">
                                 <Box>
                                     <Text fontSize="sm" color="gray.500">Status do estoque</Text>
-                                    <Heading size="md">{statusInfo.label}</Heading>
+                                    <Heading size="md" fontFamily="Poppins, sans-serif">{statusInfo.label}</Heading>
                                 </Box>
                                 {statusInfo.icon}
                             </HStack>
@@ -191,7 +191,7 @@ const Dashboard: React.FC = () => {
                             <HStack justify="space-between">
                                 <Box>
                                     <Text fontSize="sm" color="gray.500">Receita do Mês Atual</Text>
-                                    <Heading size="md">
+                                    <Heading size="md" fontFamily="Poppins, sans-serif">
                                         {statsMesAtual?.valor_total_saida
                                             ? `R$ ${statsMesAtual.valor_total_saida.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
                                             : '...'
@@ -209,7 +209,7 @@ const Dashboard: React.FC = () => {
                             <HStack justify="space-between">
                                 <Box>
                                     <Text fontSize="sm" color="gray.500">Total de movimentações</Text>
-                                    <Heading size="md">{stats?.total_movimentacoes ?? '...'}</Heading>
+                                    <Heading size="md" fontFamily="Poppins, sans-serif">{stats?.total_movimentacoes ?? '...'}</Heading>
                                 </Box>
                                 <MdMedicalServices size={28} color="#BFDDFF" />
                             </HStack>
@@ -222,7 +222,7 @@ const Dashboard: React.FC = () => {
                             <HStack justify="space-between">
                                 <Box>
                                     <Text fontSize="sm" color="gray.500">Produtos em estoque crítico</Text>
-                                    <Heading size="md">{resumo?.produtos_estoque_critico ?? '...'}</Heading>
+                                    <Heading size="md" fontFamily="Poppins, sans-serif">{resumo?.produtos_estoque_critico ?? '...'}</Heading>
                                 </Box>
                                 <MdWarningAmber size={28} color="#E74C3C" />
                             </HStack>
