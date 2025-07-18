@@ -108,6 +108,39 @@ export const getResumoAlertas = async (): Promise<ResumoAlertas> => {
   return response.data;
 };
 
+// Funções para obter detalhes de produtos específicos
+export const getMedicamentoById = async (id: number) => {
+  const response = await api.get(`/medicamento/${id}`);
+  return response.data;
+};
+
+export const getCuidadoPessoalById = async (id: number) => {
+  const response = await api.get(`/cuidado-pessoal/${id}`);
+  return response.data;
+};
+
+export const getSuplementoAlimentarById = async (id: number) => {
+  const response = await api.get(`/suplemento-alimentar/${id}`);
+  return response.data;
+};
+// Funções de criação de recursos
+export const createMedicamento = async (data: any) => {
+  const response = await api.post('/medicamento', data);
+  return response.data;
+};
+export const createCuidadoPessoal = async (data: any) => {
+  const response = await api.post('/cuidado-pessoal', data);
+  return response.data;
+};
+export const createSuplementoAlimentar = async (data: any) => {
+  const response = await api.post('/suplemento-alimentar', data);
+  return response.data;
+};
+export const createItemEstoque = async (data: any) => {
+  const response = await api.post('/item-estoque', data);
+  return response.data;
+};
+
 export default api;
 
 // Estatísticas de movimentações para dashboard

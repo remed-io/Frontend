@@ -3,6 +3,9 @@ import { Routes, Route, Navigate } from 'react-router-dom'
 import Login from './pages/Login.tsx'
 import Dashboard from './pages/Dashboard.tsx'
 import Estoque from './pages/Estoque.tsx'
+import ListaProdutos from './pages/ListaProdutos.tsx'
+import DetalheProduto from './pages/DetalheProduto.tsx'
+import AdicionarProduto from './pages/AdicionarProduto.tsx'
 
 function App() {
   return (
@@ -15,6 +18,12 @@ function App() {
       <Route path="/dashboard" element={<PrivateRoute><Dashboard /></PrivateRoute>} />
       {/* Estoque protegido */}
       <Route path="/estoque" element={<PrivateRoute><Estoque /></PrivateRoute>} />
+      {/* Lista de Produtos protegido */}
+      <Route path="/estoque/produtos" element={<PrivateRoute><ListaProdutos /></PrivateRoute>} />
+      {/* Adicionar Produto protegido */}
+      <Route path="/estoque/produtos/novo" element={<PrivateRoute><AdicionarProduto /></PrivateRoute>} />
+      {/* Detalhe de Produto protegido */}
+      <Route path="/estoque/produtos/:itemId" element={<PrivateRoute><DetalheProduto /></PrivateRoute>} />
       {/* Qualquer outra rota volta para login */}
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

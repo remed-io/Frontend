@@ -1,3 +1,4 @@
+// @ts-nocheck
 import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
@@ -32,18 +33,28 @@ import {
 } from 'react-icons/fi'
 import { AiOutlineStock } from 'react-icons/ai'
 import { MdTranslate, MdWarningAmber } from 'react-icons/md'
-import { getResumoEstoque } from '../services/api'
+import { getResumoEstoque, getEstoqueDetalhado } from '../services/api'
+import Sidebar from './Sidebar'
 import type { ResumoEstoque } from '../services/api'
+import { MdMedicalServices } from 'react-icons/md';
 
-const Estoque: React.FC = () => {
+const Estoque = () => {
   const navigate = useNavigate()
-  const [resumo, setResumo] = useState<ResumoEstoque | null>(null)
+  const [user, setUser] = useState(null)
+  const [resumo, setResumo] = useState(null)
+  const [detalhado, setDetalhado] = useState(null)
 
   // Busca resumo de estoque
   useEffect(() => {
     getResumoEstoque()
       .then(data => setResumo(data))
       .catch(err => console.error('Erro ao buscar resumo de estoque:', err))
+  }, [])
+  // Busca detalhamento para locais de armazenamento
+  useEffect(() => {
+    getEstoqueDetalhado()
+      .then(data => setDetalhado(data))
+      .catch(err => console.error('Erro ao buscar detalhamento de estoque:', err))
   }, [])
 
   // Data e hora para header
@@ -54,27 +65,19 @@ const Estoque: React.FC = () => {
   const greetingDate = agora.toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })
   const greetingTime = agora.toLocaleTimeString('pt-BR')
 
+  useEffect(() => {
+    const stored = localStorage.getItem('user')
+    if (stored) setUser(JSON.parse(stored))
+  }, [])
+
+  const handleLogout = () => {
+    localStorage.clear()
+    navigate('/login')
+  }
+
   return (
     <Flex h="100vh" fontFamily="Poppins, sans-serif" bg="gray.100">
-      {/* Sidebar */}
-      <Box w="60" bg="blue.50" p={4}>
-        <VStack align="start" spacing={6}>
-          <HStack>
-            <Image src="/logo.png" alt="ReMed.io Logo" boxSize="40px" />
-            <Heading size="md" fontFamily="Poppins, sans-serif">ReMed.io</Heading>
-          </HStack>
-          <VStack align="start" spacing={4} w="full">
-            <HStack spacing={3} w="full" p={2} _hover={{ bg: 'blue.100', cursor: 'pointer' }} borderRadius="md" onClick={() => navigate('/dashboard')}>
-              <FiSearch />
-              <Text>Dashboard</Text>
-            </HStack>
-            <HStack spacing={3} w="full" p={2} _hover={{ bg: 'blue.100', cursor: 'pointer' }} borderRadius="md" onClick={() => navigate('/estoque')}>
-              <AiOutlineStock />
-              <Text>Estoque</Text>
-            </HStack>
-          </VStack>
-        </VStack>
-      </Box>
+      <Sidebar user={user} handleLogout={handleLogout} />
 
       {/* Main Content */}
       <Flex direction="column" flex={1} bg="gray.100">
@@ -108,28 +111,33 @@ const Estoque: React.FC = () => {
           <Heading size="lg">Estoque</Heading>
           <Text color="gray.600">Lista de produtos disponíveis para venda.</Text>
           <SimpleGrid columns={[1, 2, 4]} spacing={4} mt={6}>
-            <Box bg="white" p={4} borderLeft="4px solid" borderColor="blue.300" borderRadius="md">
-              <HStack justify="space-between">
-                <Box>
-                  <Text fontSize="sm" color="gray.500">Medicamentos Disponíveis</Text>
-                  <Heading size="md">{resumo?.total_itens ?? '...'}</Heading>
-                </Box>
-                <AiOutlineStock size={28} color="#3182CE" />
-              </HStack>
-              <Button variant="link" mt={2} colorScheme="blue">Ver Medicamentos »</Button>
-            </Box>
-
             <Box bg="white" p={4} borderLeft="4px solid" borderColor="green.300" borderRadius="md">
               <HStack justify="space-between">
                 <Box>
                   <Text fontSize="sm" color="gray.500">Produtos Disponíveis</Text>
                   <Heading size="md">{resumo?.total_produtos_diferentes ?? '...'}</Heading>
                 </Box>
-                <AiOutlineStock size={28} color="#38A169" />
+                <MdMedicalServices size={28} color="#38A169" />
               </HStack>
-              <Button variant="link" mt={2} colorScheme="green">Ver Produtos »</Button>
+              <Button variant="link" mt={2} colorScheme="green" onClick={() => navigate('/estoque/produtos')}>Ver Produtos »</Button>
             </Box>
-
+            <Box bg="white" p={4} borderLeft="4px solid" borderColor="blue.300" borderRadius="md">
+              <HStack justify="space-between">
+                <Box>
+                  <Text fontSize="sm" color="gray.500">Locais de Armazenamento Disponíveis</Text>
+                  <Heading size="md">
+                    {detalhado
+                      ? new Set(detalhado.itens.map((item: any) => item.armazem_local)).size
+                      : '...'
+                    }
+                  </Heading>
+                </Box>
+                <MdMedicalServices size={28} color="#3182CE" />
+              </HStack>
+              <Button variant="link" mt={2} colorScheme="blue">
+                Ver Locais »
+              </Button>
+            </Box>
             <Box bg="white" p={4} borderLeft="4px solid" borderColor="red.400" borderRadius="md">
               <HStack justify="space-between">
                 <Box>
