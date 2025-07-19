@@ -1,17 +1,16 @@
-import React, { useState } from 'react'
-import type { FormEvent } from 'react'
+import { useState, type FC, type FormEvent, type ChangeEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Box, Flex, Input, Button, Heading, Text, Image, Stack, FormControl, FormLabel } from '@chakra-ui/react'
-import { loginFuncionario } from '../services/api'
+import { loginFuncionario } from '../services/api.ts'
 
-const Login: React.FC = () => {
-    const [email, setEmail] = useState<string>('')
-    const [senha, setSenha] = useState<string>('')
-    const [loading, setLoading] = useState<boolean>(false)
-    const [errorMessage, setErrorMessage] = useState<string>('')
+const Login: FC = () => {
+    const [email, setEmail] = useState('')
+    const [senha, setSenha] = useState('')
+    const [loading, setLoading] = useState(false)
+    const [errorMessage, setErrorMessage] = useState('')
     const navigate = useNavigate()
 
-    const handleSubmit = async (e: FormEvent) => {
+    const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
         e.preventDefault()
         setErrorMessage('')
         setLoading(true)
@@ -56,16 +55,20 @@ const Login: React.FC = () => {
                         <Stack spacing={4}>
                             <FormControl id="email" isRequired>
                                 <FormLabel>Endereço de e-mail</FormLabel>
-                                <Input type="email" placeholder="seu@exemplo.com"
+                                <Input
+                                    type="email"
+                                    placeholder="seu@exemplo.com"
                                     value={email}
-                                    onChange={e => setEmail(e.target.value)}
+                                    onChange={(e: ChangeEvent<HTMLInputElement>) => setEmail(e.currentTarget.value)}
                                     borderColor="gray.300" />
                             </FormControl>
                             <FormControl id="password" isRequired>
                                 <FormLabel>Senha</FormLabel>
-                                <Input type="password" placeholder="••••••••"
+                                <Input
+                                    type="password"
+                                    placeholder="••••••••"
                                     value={senha}
-                                    onChange={e => setSenha(e.target.value)}
+                                    onChange={(e: ChangeEvent<HTMLInputElement>) => setSenha(e.currentTarget.value)}
                                     borderColor="gray.300" />
                                 <Flex justify="flex-end">
                                     <Text fontSize="sm" color="blue.500" cursor="pointer" mt={1}>

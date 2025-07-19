@@ -199,7 +199,8 @@ export const getEstoquePorItemEstoque = async (id: number): Promise<any[]> => {
   return response.data
 }
 
-export default api;
+// Exporta instância axios para consumo genérico
+export default api
 
 // Estatísticas de movimentações para dashboard
 export interface EstatisticasMovimentacao {

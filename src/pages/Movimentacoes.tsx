@@ -415,19 +415,26 @@ function SaidaEstoqueForm() {
                         <Input type="number" min={1} value={formSaida.quantidade} onChange={e => setFormSaida({ ...formSaida, quantidade: e.target.value })} />
                     </FormControl>
 
+                    {/* Campos obrigatórios para saída, se necessário */}
                     {infoItem?.necessita_receita && (
                         <>
                             <FormControl isRequired>
                                 <FormLabel>CPF do Comprador</FormLabel>
-                                <Input value={formSaida.cpf_comprador} onChange={e => setFormSaida({ ...formSaida, cpf_comprador: e.target.value })} />
+                                <Input placeholder="CPF do comprador"
+                                    value={formSaida.cpf_comprador}
+                                    onChange={e => setFormSaida({ ...formSaida, cpf_comprador: e.target.value })} />
                             </FormControl>
                             <FormControl isRequired>
                                 <FormLabel>Nome do Comprador</FormLabel>
-                                <Input value={formSaida.nome_comprador} onChange={e => setFormSaida({ ...formSaida, nome_comprador: e.target.value })} />
+                                <Input placeholder="Nome do comprador"
+                                    value={formSaida.nome_comprador}
+                                    onChange={e => setFormSaida({ ...formSaida, nome_comprador: e.target.value })} />
                             </FormControl>
-                            <FormControl>
-                                <FormLabel>Receita Digital (opcional)</FormLabel>
-                                <Input type="file" onChange={e => setFormSaida({ ...formSaida, receita_digital: e.target.files[0] })} />
+                            <FormControl isRequired>
+                                <FormLabel>Receita Digital (URL ou texto)</FormLabel>
+                                <Input placeholder="Link ou texto da receita digital"
+                                    value={formSaida.receita_digital}
+                                    onChange={e => setFormSaida({ ...formSaida, receita_digital: e.target.value })} />
                             </FormControl>
                         </>
                     )}

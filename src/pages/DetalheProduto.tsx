@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import {
     Box,
@@ -32,6 +32,12 @@ import {
     Tag,
     TagLabel,
     HStack,
+    AlertDialog,
+    AlertDialogOverlay,
+    AlertDialogContent,
+    AlertDialogHeader,
+    AlertDialogBody,
+    AlertDialogFooter,
 } from '@chakra-ui/react'
 import { FiEdit, FiSearch, FiArrowLeft, FiArrowRight, FiTrash2 } from 'react-icons/fi'
 import Sidebar from './Sidebar'
@@ -64,6 +70,9 @@ const DetalheProduto = () => {
 
     // edit modal disclosure
     const { isOpen: isEditOpen, onOpen: onEditOpen, onClose: onEditClose } = useDisclosure()
+    // Confirmação de exclusão
+    const { isOpen: isDeleteOpen, onOpen: onDeleteOpen, onClose: onDeleteClose } = useDisclosure()
+    const cancelRef = useRef<HTMLButtonElement>(null)
 
     // Ao abrir modal de edição, busca dados do backend
     const handleOpenEdit = async () => {
@@ -379,17 +388,7 @@ const DetalheProduto = () => {
                     </Box>
                     {/* Ações: Deletar e Registrar Saída */}
                     <Flex mt={6} justify="space-between">
-                        <Button colorScheme="red" onClick={async () => {
-                            if (window.confirm('Confirma exclusão deste item de estoque?')) {
-                                try {
-                                    await deleteItemEstoque(estoqueItem.item_estoque_id)
-                                    navigate('/estoque/produtos')
-                                } catch (error) {
-                                    console.error(error)
-                                    alert('Não foi possível excluir o item de estoque. Verifique se existem registros relacionados.')
-                                }
-                            }
-                        }}>
+                        <Button colorScheme="red" onClick={onDeleteOpen}>
                             Excluir Item
                         </Button>
                         <Button colorScheme="blue" leftIcon={<FiArrowRight />} onClick={() => navigate(`/estoque/produtos/${estoqueItem.item_estoque_id}`)}>
@@ -645,6 +644,39 @@ const DetalheProduto = () => {
                             </ModalFooter>
                         </ModalContent>
                     </Modal>
+                    {/* AlertDialog de confirmação de exclusão */}
+                    <AlertDialog
+                        isOpen={isDeleteOpen}
+                        leastDestructiveRef={cancelRef}
+                        onClose={onDeleteClose}
+                    >
+                        <AlertDialogOverlay>
+                            <AlertDialogContent>
+                                <AlertDialogHeader>Confirmar exclusão</AlertDialogHeader>
+                                <AlertDialogBody>
+                                    Tem certeza que deseja excluir este item de estoque? Esta ação não pode ser desfeita.
+                                </AlertDialogBody>
+                                <AlertDialogFooter>
+                                    <Button ref={cancelRef} onClick={onDeleteClose}>
+                                        Cancelar
+                                    </Button>
+                                    <Button colorScheme="red" onClick={async () => {
+                                        try {
+                                            await deleteItemEstoque(estoqueItem.item_estoque_id)
+                                            navigate('/estoque/produtos')
+                                        } catch (error) {
+                                            console.error(error)
+                                            alert('Não foi possível excluir o item de estoque.')
+                                        } finally {
+                                            onDeleteClose()
+                                        }
+                                    }} ml={3}>
+                                        Excluir
+                                    </Button>
+                                </AlertDialogFooter>
+                            </AlertDialogContent>
+                        </AlertDialogOverlay>
+                    </AlertDialog>
                 </Box>
             </Flex>
         </Flex>
